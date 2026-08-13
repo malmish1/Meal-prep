@@ -12,6 +12,8 @@ import {
   ShieldCheck,
   ImageOff,
   PenLine,
+  House,
+  SlidersHorizontal,
 } from "lucide-react";
 import { downloadBackup, importBackup, readBackupFile } from "./storage/backup";
 import { getSetting, setSetting } from "./storage/db";
@@ -30,7 +32,9 @@ import { ImageImport } from "./components/ImageImport";
 import { OriginalImages } from "./components/OriginalImages";
 import { WeekPromotions } from "./components/WeekPromotions";
 import { RecipeSection } from "./components/RecipeSection";
-type Page = "week" | "recipes" | "favorites" | "more";
+import { InventoryPage } from "./components/InventoryPage";
+import { PersonalizationPage } from "./components/PersonalizationPage";
+type Page = "week" | "recipes" | "favorites" | "home" | "profile" | "more";
 type View =
   | { kind: "list" }
   | { kind: "detail"; recipe: Recipe }
@@ -44,7 +48,7 @@ const nav = [
   ["favorites", "Favoriter", Heart],
   ["more", "Mer", MoreHorizontal],
 ] as const;
-function MorePage({ onRestored }: { onRestored: () => void }) {
+function MorePage({ onRestored,onProfile }: { onRestored: () => void;onProfile:()=>void }) {
   const [name, setName] = useState(""),
     [status, setStatus] = useState("");
   const input = useRef<HTMLInputElement>(null);
@@ -79,6 +83,7 @@ function MorePage({ onRestored }: { onRestored: () => void }) {
     <main className="page">
       <p className="eyebrow">Inställningar</p>
       <h1>Mer</h1>
+      <section className="settings-card"><Heading icon={<SlidersHorizontal/>} title="Kostprofil & standardmåltider" text="Fas, kalorimål, protein och dina standardval."/><button className="secondary" onClick={onProfile}>Öppna kostprofil</button></section>
       <section className="settings-card">
         <Heading
           icon={<UserRound />}
@@ -148,7 +153,7 @@ function Heading({
 export default function App() {
   const [page, setPage] = useState<Page>(() => {
       const p = location.hash.slice(1);
-      return ["week", "recipes", "favorites", "more"].includes(p)
+      return ["week", "recipes", "favorites", "home", "profile", "more"].includes(p)
         ? (p as Page)
         : "week";
     }),
@@ -235,8 +240,12 @@ export default function App() {
         onOpen={(recipe) => setView({ kind: "detail", recipe })}
         onCreate={() => setSheet(true)}
       />
+    ) : page === "home" ? (
+      <InventoryPage />
+    ) : page === "profile" ? (
+      <PersonalizationPage />
     ) : page === "more" ? (
-      <MorePage onRestored={() => void refresh()} />
+      <MorePage onRestored={() => void refresh()} onProfile={()=>go("profile")} />
     ) : (
       <WeekPromotions />
     );
@@ -249,7 +258,7 @@ export default function App() {
           </span>
           <strong>Meal Prep</strong>
         </div>
-        <span className="local-pill">Lokalt & privat</span>
+        <button className="home-shortcut" onClick={()=>go("home")}><House/> Hemma</button>
       </header>
       {content}
       {view.kind !== "editor" && view.kind !== "detail" ? (

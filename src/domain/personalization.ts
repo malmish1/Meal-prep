@@ -1,0 +1,11 @@
+export type DietPhase="cut"|"maintenance"|"bulk";export type CalorieFlexibility="flexible"|"moderate"|"precise";export type ProteinPriority="normal"|"high"|"veryHigh";
+export interface DietProfile{phase:DietPhase;dailyCalories:number|null;calorieFlexibility:CalorieFlexibility;proteinPriority:ProteinPriority}
+export interface StandardMealIngredient{id:string;displayName:string;quantity:string;unit:string;exclusions?:string[]}
+export interface StandardMeal{id:string;title:string;ingredients:StandardMealIngredient[];preparation:string;nutrition:{calories:number|null;protein:number|null;carbs:number|null;fat:number|null};phaseVariants:Partial<Record<DietPhase,StandardMealIngredient[]>>}
+export type InventoryLocation="freezer"|"fridge"|"pantry";
+export interface InventoryItem{id:string;displayName:string;normalizedName:string;quantity:number|null;unit:string|null;location:InventoryLocation;notes:string;useFirst:boolean;createdAt:string;updatedAt:string}
+export const defaultDietProfile=():DietProfile=>({phase:"maintenance",dailyCalories:2500,calorieFlexibility:"flexible",proteinPriority:"high"});
+const ingredient=(displayName:string,quantity:string,unit:string,exclusions?:string[]):StandardMealIngredient=>({id:crypto.randomUUID(),displayName,quantity,unit,exclusions});
+export const defaultBreakfast=():StandardMeal=>({id:"default-breakfast",title:"Overnight oats",ingredients:[ingredient("Chiafrön","5–7","g"),ingredient("Fiberhavregryn","60","g"),ingredient("Whey proteinpulver","30","g"),ingredient("Vatten","","efter behov")],preparation:"Blanda ingredienserna och ställ i kylen över natten.",nutrition:{calories:null,protein:null,carbs:null,fat:null},phaseVariants:{}});
+export const defaultSnack=():StandardMeal=>({id:"default-snack",title:"Kvarg, majskakor och ägg",ingredients:[ingredient("Majskakor, ranch/ost-smak","5","st"),ingredient("Kvarg","300","g"),ingredient("Honung","10","g"),ingredient("Müsli utan nötter","30","g",["nötter"]),ingredient("Ägg","4","st"),ingredient("Kaviar","lite","")],preparation:"",nutrition:{calories:null,protein:null,carbs:null,fat:null},phaseVariants:{}});
+export function normalizeFoodName(value:string){return value.trim().toLocaleLowerCase("sv-SE").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/\b(farsk|svensk|ekologisk)\b/g,"").replace(/\s+/g," ").trim()}
