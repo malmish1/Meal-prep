@@ -12,6 +12,8 @@ type AiIngredient = {
 export type AiRecipeResult = {
   title: string;
   description: string;
+  detectedLanguage:"sv"|"en"|"other";
+  originalText:string;
   servings: number | null;
   ingredients: AiIngredient[];
   instructions: string[];
@@ -83,6 +85,8 @@ export function toRecipeDraft(result: AiRecipeResult): RecipeDraft {
     title: result.title,
     description: result.description,
     sourceType: "ai-image",
+    importLanguage: result.detectedLanguage,
+    originalImportText: result.originalText,
     importWarnings: [...new Set(warnings)],
     sourceName: result.source.name ?? "",
     sourceUrl: result.source.url ?? "",
@@ -91,19 +95,24 @@ export function toRecipeDraft(result: AiRecipeResult): RecipeDraft {
     proteinGramsPerServing: result.nutrition.proteinGramsPerServing ?? undefined,
     carbsGramsPerServing: result.nutrition.carbsGramsPerServing ?? undefined,
     fatGramsPerServing: result.nutrition.fatGramsPerServing ?? undefined,
-    ingredients: result.ingredients.map((item) => ({
+    ingredients: result.ingredients.map((item) => {const converted=convertMeasurement(item.amount,item.unit);return({
       id: crypto.randomUUID(),
       name: item.ingredient,
-      quantity: item.amount ?? "",
-      unit: item.unit ?? "",
+      quantity: converted.amount,
+      unit: converted.unit,
       note: item.note ?? undefined,
       uncertain: item.uncertain,
-    })),
+    })}),
     instructions: result.instructions.map((text, index) => ({
-      id: crypto.randomUUID(), order: index + 1, text,
+      id: crypto.randomUUID(), order: index + 1, text:convertTemperatures(text),
     })),
   };
 }
+
+const numeric=(value:string|null)=>{if(!value)return null;const n=Number(value.replace(",","."));return Number.isFinite(n)?n:null};
+const rounded=(value:number,step=5)=>String(Math.round(value/step)*step).replace(".",",");
+export function convertMeasurement(amount:string|null,unit:string|null){const u=(unit??"").trim().toLowerCase(),n=numeric(amount);if(n==null)return{amount:amount??"",unit:unit??""};if(["lb","lbs","pound","pounds"].includes(u)){const g=n*453.592;return g>=1000?{amount:(Math.round(g/100)/10).toString().replace(".",","),unit:"kg"}:{amount:rounded(g,5),unit:"g"}}if(["oz","ounce","ounces"].includes(u))return{amount:rounded(n*28.3495,5),unit:"g"};if(["fl oz","fluid ounce","fluid ounces"].includes(u)){const ml=n*29.5735;return ml>=100?{amount:(Math.round(ml/10)/10).toString().replace(".",","),unit:"dl"}:{amount:rounded(ml,5),unit:"ml"}}if(["cup","cups"].includes(u))return{amount:(Math.round(n*24)/10).toString().replace(".",","),unit:"dl"};if(["tbsp","tablespoon","tablespoons"].includes(u))return{amount:amount??String(n),unit:"msk"};if(["tsp","teaspoon","teaspoons"].includes(u))return{amount:amount??String(n),unit:"tsk"};return{amount:amount??"",unit:unit??""}}
+export function convertTemperatures(text:string){return text.replace(/(\d{2,3})\s*°?\s*F\b/gi,(_,raw)=>`${Math.round(((Number(raw)-32)*5/9)/10)*10} °C`)}
 
 async function optimizeRecipeImage(file: File): Promise<string> {
   if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new AiAnalysisError("invalid");

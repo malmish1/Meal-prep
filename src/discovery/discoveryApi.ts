@@ -1,4 +1,0 @@
-import type {ExternalRecipeCandidate} from "../domain/externalRecipe";
-const apiBase=(import.meta.env.VITE_RECIPE_API_URL as string|undefined)??"https://meal-prep-api.malmish1.workers.dev";
-export class DiscoveryError extends Error{constructor(public code:string){super(code)}}
-export async function discoverRecipes(query:string):Promise<ExternalRecipeCandidate[]>{let response:Response;try{response=await fetch(`${apiBase}/recipes/discover`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query})})}catch{throw new DiscoveryError("worker_unavailable")}let payload:any;try{payload=await response.json()}catch{throw new DiscoveryError("malformed_response")}if(!response.ok)throw new DiscoveryError(payload?.error??"discovery_failed");if(!Array.isArray(payload.candidates))throw new DiscoveryError("malformed_response");return payload.candidates}

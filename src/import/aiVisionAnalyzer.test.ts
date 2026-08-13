@@ -1,20 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
-import { toRecipeDraft, type AiRecipeResult } from "./aiVisionAnalyzer";
-
-describe("AI recipe mapping", () => {
-  it("keeps semantic title, description and uncertainty", () => {
-    vi.stubGlobal("crypto", { randomUUID: vi.fn().mockReturnValueOnce("base").mockReturnValueOnce("ingredient").mockReturnValueOnce("step") });
-    const result: AiRecipeResult = {
-      title: "Snabb tonfiskröra", description: "Snabb tonfiskröra som du enkelt svänger ihop.", servings: null,
-      ingredients: [{ amount: null, unit: null, ingredient: "olivolja", note: null, uncertain: true }],
-      instructions: ["Blanda ingredienserna."],
-      nutrition: { caloriesPerServing: null, proteinGramsPerServing: null, carbsGramsPerServing: null, fatGramsPerServing: null },
-      source: { name: null, url: null }, confidence: { overall: .8, title: .99, ingredients: .7, instructions: .8 }, warnings: [],
-    };
-    const draft = toRecipeDraft(result);
-    expect(draft.title).toBe("Snabb tonfiskröra");
-    expect(draft.description).not.toContain("11:25");
-    expect(draft.ingredients[0]).toMatchObject({ name: "olivolja", uncertain: true });
-    expect(draft.sourceType).toBe("ai-image");
-  });
-});
+import{describe,expect,it}from"vitest";import{convertMeasurement,convertTemperatures,toRecipeDraft,type AiRecipeResult}from"./aiVisionAnalyzer";
+const base=(changes:Partial<AiRecipeResult>):AiRecipeResult=>({title:"Snabb tonfiskröra",description:"Enkel röra.",detectedLanguage:"sv",originalText:"Snabb tonfiskröra",servings:null,ingredients:[{amount:null,unit:null,ingredient:"olivolja",note:null,uncertain:true}],instructions:["Blanda ingredienserna."],nutrition:{caloriesPerServing:null,proteinGramsPerServing:null,carbsGramsPerServing:null,fatGramsPerServing:null},source:{name:null,url:null},confidence:{overall:.8,title:.99,ingredients:.7,instructions:.8},warnings:[],...changes});
+describe("AI recipe mapping",()=>{it("keeps semantic Swedish output, original text and uncertainty",()=>{const draft=toRecipeDraft(base({}));expect(draft.title).toBe("Snabb tonfiskröra");expect(draft.ingredients[0]).toMatchObject({name:"olivolja",uncertain:true});expect(draft.originalImportText).toBe("Snabb tonfiskröra")});it("maps translated English recipe and metric units for editable review",()=>{const draft=toRecipeDraft(base({title:"Proteinrik kycklingpasta",detectedLanguage:"en",originalText:"High Protein Chicken Pasta. 1 lb chicken, 1 cup milk, 1 tbsp oil. Bake at 400°F.",servings:4,ingredients:[{amount:"450",unit:"g",ingredient:"kycklingfilé",note:null,uncertain:false},{amount:"2,4",unit:"dl",ingredient:"mjölk",note:null,uncertain:false},{amount:"1",unit:"msk",ingredient:"olja",note:null,uncertain:false}],instructions:["Tillaga i 200 °C."]}));expect(draft.title).toBe("Proteinrik kycklingpasta");expect(draft.ingredients).toEqual(expect.arrayContaining([expect.objectContaining({quantity:"2,4",unit:"dl",name:"mjölk"}),expect.objectContaining({quantity:"1",unit:"msk"})]));expect(draft.instructions[0].text).toContain("200 °C");expect(draft.importLanguage).toBe("en")})});
+describe("deterministic imperial conversion fallback",()=>{it("uses practical Swedish cooking units",()=>{expect(convertMeasurement("1","cup")).toEqual({amount:"2,4",unit:"dl"});expect(convertMeasurement("1","lb")).toEqual({amount:"455",unit:"g"});expect(convertMeasurement("1","tbsp").unit).toBe("msk");expect(convertMeasurement("1","tsp").unit).toBe("tsk");expect(convertTemperatures("Bake at 400°F")).toContain("200 °C")})});
