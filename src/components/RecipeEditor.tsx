@@ -62,11 +62,41 @@ export function RecipeEditor({
           <ArrowLeft />
         </button>
         <div>
-          <p className="eyebrow">{review ? "Bildimport" : initial?.id ? "Redigera" : "Nytt recept"}</p>
-          <h1>{review ? "Granska recept" : initial?.id ? "Redigera recept" : "Skapa recept"}</h1>
+          <p className="eyebrow">
+            {review ? "Bildimport" : initial?.id ? "Redigera" : "Nytt recept"}
+          </p>
+          <h1>
+            {review
+              ? "Granska recept"
+              : initial?.id
+                ? "Redigera recept"
+                : "Skapa recept"}
+          </h1>
         </div>
       </div>
-      {review ? <section className="review-notice"><b>Kontrollera resultatet</b><p>Kontrollera att Meal Prep har tolkat receptet rätt innan du sparar.</p>{onOriginals ? <button type="button" className="secondary" onClick={onOriginals}>Visa originalbilder</button> : null}</section> : null}
+      {review ? (
+        <section className="review-notice">
+          <b>Kontrollera resultatet</b>
+          <p>
+            Kontrollera att Meal Prep har tolkat receptet rätt innan du sparar.
+          </p>
+          {!draft.title ? (
+            <p className="uncertain-note">
+              ⚠️ Kontrollera titel – ingen säker titel hittades.
+            </p>
+          ) : null}
+          {draft.ingredients.some((i) => i.uncertain) ? (
+            <p className="uncertain-note">
+              ⚠️ Kontrollera markerade ingrediensmängder.
+            </p>
+          ) : null}
+          {onOriginals ? (
+            <button type="button" className="secondary" onClick={onOriginals}>
+              Visa originalbilder
+            </button>
+          ) : null}
+        </section>
+      ) : null}
       <form onSubmit={submit}>
         <FormSection title="Grundinfo">
           <Field label="Receptnamn *">
@@ -247,7 +277,12 @@ export function RecipeEditor({
         <FormSection title="Ingredienser">
           <div className="repeat-list">
             {draft.ingredients.map((item, index) => (
-              <div className="repeat-card" key={item.id}>
+              <div
+                className={
+                  item.uncertain ? "repeat-card uncertain-row" : "repeat-card"
+                }
+                key={item.id}
+              >
                 <div className="ingredient-grid">
                   <input
                     aria-label={`Mängd ${index + 1}`}
@@ -457,7 +492,11 @@ export function RecipeEditor({
         ) : null}
         <div className="sticky-save">
           <button className="primary" disabled={saving}>
-            {saving ? "Sparar…" : review ? "Spara i receptbanken" : "Spara recept"}
+            {saving
+              ? "Sparar…"
+              : review
+                ? "Spara i receptbanken"
+                : "Spara recept"}
           </button>
         </div>
       </form>
