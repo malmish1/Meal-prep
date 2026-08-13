@@ -7,6 +7,7 @@ import {
 export let lastImportDebug: ParserDebug | undefined;
 export type AnalysisStatus =
   | "Förbereder bilder…"
+  | "AI-tolkar receptet…"
   | "Läser recept…"
   | "Strukturerar ingredienser…"
   | "Kontrollerar resultat…";

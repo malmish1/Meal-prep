@@ -5,4 +5,5 @@ coverage/
 .pnpm-store/
 *.tsbuildinfo
 *.local
+.dev.vars
 .DS_Store

@@ -8,9 +8,11 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { LocalOcrAnalyzer, type AnalysisStatus } from "../import/imageAnalyzer";
+import { AiAnalysisError, AiVisionAnalyzer } from "../import/aiVisionAnalyzer";
 import type { RecipeDraft } from "../domain/recipe";
 type Item = { file: File; url: string; id: string };
-const analyzer = new LocalOcrAnalyzer();
+const aiAnalyzer = new AiVisionAnalyzer();
+const offlineAnalyzer = new LocalOcrAnalyzer();
 export function ImageImport({
   onReview,
   onCancel,
@@ -56,10 +58,10 @@ export function ImageImport({
       return copy;
     });
   }
-  async function analyze() {
+  async function analyze(mode: "ai" | "offline") {
     setError("");
     try {
-      const draft = await analyzer.analyze(
+      const draft = await (mode === "ai" ? aiAnalyzer : offlineAnalyzer).analyze(
         items.map((i) => i.file),
         setStatus,
       );
@@ -76,7 +78,15 @@ export function ImageImport({
     } catch (e) {
       setStatus("");
       setError(
-        e instanceof Error && e.message === "Ingen recepttext hittades"
+        e instanceof AiAnalysisError
+          ? e.kind === "offline"
+            ? "Ingen internetanslutning. Använd offline texttolkning eller försök igen senare."
+            : e.kind === "limit"
+              ? "AI-tjänstens kostnads- eller hastighetsgräns är nådd. Försök igen senare."
+              : e.kind === "invalid"
+                ? "En bild kunde inte förberedas. Testa en annan bild."
+                : "AI-tjänsten är tillfälligt otillgänglig."
+          : e instanceof Error && e.message === "Ingen recepttext hittades"
           ? "Vi kunde inte hitta tillräckligt med receptinformation i bilderna."
           : "Bilden kunde inte läsas. Testa en tydligare bild eller screenshot.",
       );
@@ -89,7 +99,7 @@ export function ImageImport({
           <ArrowLeft />
         </button>
         <div>
-          <p className="eyebrow">Lokal bildtolkning</p>
+          <p className="eyebrow">AI-bildtolkning</p>
           <h1>Importera recept</h1>
         </div>
       </div>
@@ -103,7 +113,7 @@ export function ImageImport({
         <div className="privacy">
           <ShieldCheck />
           <span>
-            <b>Bearbetas lokalt</b>Bilderna analyseras på den här enheten.
+            <b>Du bestämmer när bilder skickas</b>Bilderna laddas bara upp när du trycker på AI-tolkning.
           </span>
         </div>
         <button className="primary" onClick={() => input.current?.click()}>
@@ -154,9 +164,12 @@ export function ImageImport({
           <button
             className="primary"
             disabled={!!status}
-            onClick={() => void analyze()}
+            onClick={() => void analyze("ai")}
           >
-            {status || "Analysera bilder"}
+            {status || "AI-tolkning (rekommenderas)"}
+          </button>
+          <button className="secondary" disabled={!!status} onClick={() => void analyze("offline")}>
+            Offline texttolkning
           </button>
         </section>
       ) : null}

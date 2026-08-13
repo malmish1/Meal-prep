@@ -90,6 +90,9 @@ export function RecipeEditor({
               ⚠️ Kontrollera markerade ingrediensmängder.
             </p>
           ) : null}
+          {draft.importWarnings?.map((warning) => (
+            <p className="uncertain-note" key={warning}>⚠️ {warning}</p>
+          ))}
           {onOriginals ? (
             <button type="button" className="secondary" onClick={onOriginals}>
               Visa originalbilder

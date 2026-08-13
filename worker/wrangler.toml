@@ -1,0 +1,7 @@
+name = "meal-prep-api"
+main = "src/index.ts"
+compatibility_date = "2026-08-13"
+
+[vars]
+ALLOWED_ORIGIN = "https://malmish1.github.io"
+
