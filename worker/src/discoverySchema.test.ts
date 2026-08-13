@@ -1,4 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {validDiscovery} from "./discoverySchema";
+import {likelyIndividualRecipe,validDiscovery} from "./discoverySchema";
 const candidate={title:"Kycklinggryta",sourceName:"ICA",sourceUrl:"https://www.ica.se/recept/kycklinggryta",ingredientNames:["kyckling"],ingredients:[],instructions:[],warnings:[]};
 describe("discovery response",()=>{it("kräver en riktig källa",()=>{expect(validDiscovery({candidates:[candidate]})).toBe(true);expect(validDiscovery({candidates:[{...candidate,sourceUrl:"påhittad"}]})).toBe(false);expect(validDiscovery({candidates:[{...candidate,sourceName:""}]})).toBe(false)})});
+describe("individual recipe source",()=>{it("avvisar samlings- och kategorisidor",()=>{expect(likelyIndividualRecipe(candidate)).toBe(true);expect(likelyIndividualRecipe({...candidate,title:"35 Chicken Recipes To Make Tonight",sourceUrl:"https://example.com/recipes/photos/chicken-recipes"})).toBe(false);expect(likelyIndividualRecipe({...candidate,title:"Chicken Recipes",sourceUrl:"https://example.com/recipes/chicken"})).toBe(false)})});
