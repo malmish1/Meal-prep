@@ -1,0 +1,2 @@
+import { X } from 'lucide-react'
+export function OriginalImages({urls,onClose}:{urls:string[];onClose:()=>void}){return <div className="image-viewer" role="dialog" aria-modal="true" aria-label="Originalbilder"><button aria-label="Stäng originalbilder" onClick={onClose}><X/></button><div>{urls.map((url,i)=><figure key={url}><img src={url} alt={`Originalbild ${i+1}`}/><figcaption>Bild {i+1}</figcaption></figure>)}</div></div>}
