@@ -1,0 +1,14 @@
+import { beforeEach,describe,expect,it } from 'vitest'
+import { resetDBConnectionForTests } from './db'
+import { deleteRecipe,filterRecipes,getRecipe,listRecipes,markCooked,saveRecipe,toggleFavorite,updateRecipe } from './recipes'
+import { emptyRecipe } from '../domain/recipe'
+beforeEach(async()=>{await resetDBConnectionForTests();await new Promise<void>((resolve,reject)=>{const request=indexedDB.deleteDatabase('meal-prep');request.onsuccess=()=>resolve();request.onerror=()=>reject(request.error)})})
+const draft=(title='Cajunpasta')=>({...emptyRecipe(),title,primaryProtein:'Kyckling',mealTypes:['Middag'],tags:['Cajun','Pasta'],ingredients:[{id:'i1',name:'Kyckling',quantity:'500',unit:'g'}],instructions:[{id:'s1',order:1,text:'Stek kycklingen.'}]})
+describe('receptlagret',()=>{
+ it('skapar recept med ingredienser och steg som finns kvar efter omladdning',async()=>{const saved=await saveRecipe(draft());await resetDBConnectionForTests();const loaded=await getRecipe(saved.id);expect(loaded?.title).toBe('Cajunpasta');expect(loaded?.ingredients[0]).toMatchObject({name:'Kyckling',quantity:'500'});expect(loaded?.instructions[0].text).toBe('Stek kycklingen.')})
+ it('redigerar recept och ingrediensmängd',async()=>{const saved=await saveRecipe(draft());const updated=await updateRecipe(saved.id,{title:'Krämig Cajunpasta',ingredients:[{...saved.ingredients[0],quantity:'750'}]});expect(updated.title).toBe('Krämig Cajunpasta');expect((await getRecipe(saved.id))?.ingredients[0].quantity).toBe('750')})
+ it('tar bort endast valt recept',async()=>{const first=await saveRecipe(draft('Ett'));await saveRecipe(draft('Två'));await deleteRecipe(first.id);expect((await listRecipes()).map(r=>r.title)).toEqual(['Två'])})
+ it('sparar favorit och betyg',async()=>{const saved=await saveRecipe(draft());await toggleFavorite(saved.id);await updateRecipe(saved.id,{rating:9});const loaded=await getRecipe(saved.id);expect(loaded?.favorite).toBe(true);expect(loaded?.rating).toBe(9)})
+ it('registrerar två tillagningar',async()=>{const saved=await saveRecipe(draft());await markCooked(saved.id);await markCooked(saved.id);const loaded=await getRecipe(saved.id);expect(loaded?.timesCooked).toBe(2);expect(loaded?.lastCookedAt).toBeTruthy()})
+ it('söker och filtrerar på favorit och måltid',async()=>{const one=await saveRecipe({...draft('Cajunpasta'),favorite:true});await saveRecipe({...draft('Gröt'),primaryProtein:'Vegetariskt',mealTypes:['Frukost'],tags:['Havre'],ingredients:[{id:'o',name:'Havregryn',quantity:'1',unit:'dl'}]});const all=await listRecipes();expect(filterRecipes(all,'kyckling')).toHaveLength(1);expect(filterRecipes(all,'havre')).toHaveLength(1);expect(filterRecipes(all,'cajun')).toHaveLength(1);expect(filterRecipes(all,'',{favoriteOnly:true})).toEqual([expect.objectContaining({id:one.id})]);expect(filterRecipes(all,'',{mealType:'Frukost'}).map(r=>r.title)).toEqual(['Gröt'])})
+})

@@ -1,30 +1,31 @@
 # Meal Prep
 
-Meal Prep är en mobilanpassad, lokal PWA för framtida recept, matplanering och inköpsstöd. Milestone 1 innehåller appskalet, navigation, lokal profil, backup och offline-stöd – inga receptfunktioner ännu.
+Meal Prep är en mobilanpassad och lokal PWA för en personlig receptbank och framtida matplanering. Milestone 2 innehåller receptlista, strukturerade ingredienser och instruktioner, sök/filter, favoriter, betyg, kommentarer och tillagningshistorik.
 
-## Teknik
+## Teknik och kommandon
 
-React, TypeScript och Vite används för gränssnittet. `idb` ger ett säkert lager ovanpå IndexedDB. `vite-plugin-pwa` skapar manifest och service worker. Vitest, Testing Library och fake-indexeddb används för tester.
-
-## Lokal utveckling
+Appen använder React, TypeScript, Vite, IndexedDB via `idb`, `vite-plugin-pwa` och Vitest.
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
+pnpm typecheck
+pnpm test
+pnpm build
 ```
-
-Vite visar den lokala adressen. Produktionsbygge skapas med `npm run build`, TypeScript kontrolleras med `npm run typecheck` och tester körs med `npm test`.
 
 ## Lokal data och migrationer
 
-All personlig data ligger i webbläsarens IndexedDB-databas `meal-prep`. UI:t anropar endast funktioner i `src/storage`. Databasen har versionsstyrd `upgrade`-logik; framtida ändringar ska höja versionsnumret och migrera befintliga stores utan att radera databasen. Nu förbereds stores för recept, ingredienser, favoriter, betyg, kommentarer, historik, lager, kampanjer, veckoplaner, måltidsval, inköpslistor och inställningar.
+All personlig data ligger i webbläsarens IndexedDB-databas `meal-prep`; ingen receptfunktion kräver nätverk. UI-komponenter anropar lagret i `src/storage`. Databasversion 2 lägger till ordnade instruktioner och bevarar Milestone 1-data. Framtida schemaändringar ska höja databasversionen och migrera data utan att radera databasen.
+
+Receptets grunddata ligger i `recipes`, ingredienser i `recipeIngredients` och instruktioner i `instructionSteps`. Modellen innehåller även favoriter, betyg, kommentar, näring och tillagningshistorik.
 
 ## Backup
 
-Under **Mer → Data & backup** exporteras alla stores, även tomma, i en versionsmärkt JSON-fil. Import kontrollerar appnamn, formatversion och samtliga stores. Återställning rensar och ersätter lokal data först efter en tydlig bekräftelse.
+**Mer → Data & backup** exporterar samtliga stores i en versionsmärkt JSON-fil. Återställning validerar filen och kräver bekräftelse innan lokal data ersätts. Formatversion 2 inkluderar recept, ingredienser och instruktioner; Milestone 1-backuper med formatversion 1 accepteras fortfarande.
 
 ## PWA och GitHub Pages
 
-Service workern cachar appskalet för offlineanvändning efter första besöket. Vite-basen, manifestets scope och start-URL är `/Meal-prep/`. Hash-navigation undviker 404 vid omladdning.
+Service workern cachar appskalet och produktionsbundlen, vilket gör alla lokala receptfunktioner tillgängliga offline efter första laddningen. Vite-basen, manifestets scope och start-URL är `/Meal-prep/`; hash-navigation undviker 404 vid omladdning.
 
-Workflow-filen `.github/workflows/deploy.yml` testar och bygger varje push till `main`, och publicerar sedan `dist` med GitHub Pages Actions. I repositoryts **Settings → Pages** ska **Source** vara **GitHub Actions**. Den avsedda adressen är `https://malmish1.github.io/Meal-prep/`.
+Workflowet `.github/workflows/deploy.yml` installerar med låst pnpm-lockfil, kör tester och build och publicerar `dist` till GitHub Pages efter push till `main`. Adress: `https://malmish1.github.io/Meal-prep/`.
