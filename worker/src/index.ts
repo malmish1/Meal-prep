@@ -1,5 +1,6 @@
 import { isRecipeResult, recipeSchema } from "./schema";
 import { isPromotionResult, promotionSchema } from "./promotionSchema";
+import { discoverySchema, validDiscovery } from "./discoverySchema";
 
 type Env = { OPENAI_API_KEY: string; ALLOWED_ORIGIN: string };
 const localOrigins = new Set(["http://localhost:5173", "http://127.0.0.1:5173"]);
@@ -13,7 +14,9 @@ export default {
     if (!allowed) return json({ error: "origin_not_allowed" }, 403, headers);
     if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, headers);
 
-    if(new URL(request.url).pathname==="/flyers/analyze") return analyzeFlyer(request,env,headers);
+    const path=new URL(request.url).pathname;
+    if(path==="/recipes/discover") return discoverRecipes(request,env,headers);
+    if(path==="/flyers/analyze") return analyzeFlyer(request,env,headers);
     let images: unknown;
     try { ({ images } = await request.json() as { images?: unknown }); }
     catch { return json({ error: "invalid_request" }, 400, headers); }
@@ -54,6 +57,20 @@ export default {
     } finally { clearTimeout(timeout); }
   },
 };
+
+async function discoverRecipes(request:Request,env:Env,headers:Record<string,string>){
+ let query:unknown;try{({query}=await request.json() as {query?:unknown})}catch{return json({error:"invalid_request"},400,headers)}
+ if(typeof query!=="string"||query.trim().length<2||query.length>120)return json({error:"invalid_query"},400,headers);
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),90_000);
+ try{const upstream=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{Authorization:`Bearer ${env.OPENAI_API_KEY}`,"Content-Type":"application/json"},signal:controller.signal,body:JSON.stringify({model:"gpt-5.4-mini",store:false,max_output_tokens:5000,tools:[{type:"web_search",search_context_size:"medium"}],include:["web_search_call.action.sources"],input:`${discoveryPrompt}\n\nUser search: ${query.trim()}`,text:{format:{type:"json_schema",name:"external_recipe_candidates",strict:true,schema:discoverySchema}}})});
+ if(!upstream.ok){const code=await safeUpstreamError(upstream);console.warn("recipe_discovery_error",{status:upstream.status,code});const status=upstream.status===429?429:upstream.status===402?402:503;return json({error:status===429?"rate_limit":status===402?"spend_limit":"upstream_unavailable"},status,headers)}
+ const payload=await upstream.json() as {output?:Array<{content?:Array<{type?:string;text?:string}>;action?:{sources?:Array<{url?:string}>}}>};const text=payload.output?.flatMap(x=>x.content??[]).find(x=>x.type==="output_text")?.text;if(!text)return json({error:"no_results"},404,headers);const parsed:unknown=JSON.parse(text);if(!validDiscovery(parsed))return json({error:"malformed_model_response"},502,headers);const sourceUrls=new Set(payload.output?.flatMap(x=>x.action?.sources??[]).map(x=>canonicalSource(x.url??"")).filter(Boolean));const now=new Date().toISOString();const candidates=(parsed as any).candidates.filter((x:any)=>validHttpUrl(x.sourceUrl)&&sourceUrls.has(canonicalSource(x.sourceUrl))).map((x:any)=>({...x,id:crypto.randomUUID(),discoveredAt:now,searchTerms:[query],savedToLibrary:false,dismissed:false}));return candidates.length?json({candidates,webSearchInvoked:true},200,headers):json({error:"no_results"},404,headers);
+ }catch(error){const timedOut=error instanceof Error&&error.name==="AbortError";console.warn("recipe_discovery_failed",{code:timedOut?"timeout":"transport"});return json({error:timedOut?"analysis_timeout":"upstream_unavailable"},503,headers)}finally{clearTimeout(timeout)}
+}
+
+const discoveryPrompt=`Search the live web for 5-8 real recipe pages matching the user's request. Prefer reputable established recipe publishers, supermarkets and food publications, with practical high-protein and meal-prep-friendly options when relevant. Every candidate must correspond to a real page found by web search and preserve its publisher and canonical HTTP(S) URL. Never invent a URL, nutrition number, quantity or instruction. Include ingredients/instructions only when available in search evidence; otherwise return empty arrays and warn that full details are at the source. Nutrition numbers must be null unless explicitly supported by source evidence. mealPrepSuitability and protein-rich profile may be inferred, but metadataEvidence must say inferred. Avoid duplicates and return only recipe pages, not category/search pages.`;
+function validHttpUrl(value:string){try{const url=new URL(value);return(url.protocol==="https:"||url.protocol==="http:")&&url.hostname.includes(".")}catch{return false}}
+function canonicalSource(value:string){try{const url=new URL(value);return`${url.hostname.toLocaleLowerCase()}${url.pathname.replace(/\/$/,"")}`}catch{return""}}
 
 async function analyzeFlyer(request:Request,env:Env,headers:Record<string,string>){
  let body:{pdf?:unknown;fileName?:unknown};try{body=await request.json() as typeof body}catch{return json({error:"invalid_request"},400,headers)}

@@ -29,6 +29,7 @@ import { RecipeEditor } from "./components/RecipeEditor";
 import { ImageImport } from "./components/ImageImport";
 import { OriginalImages } from "./components/OriginalImages";
 import { WeekPromotions } from "./components/WeekPromotions";
+import { RecipeSection } from "./components/RecipeSection";
 type Page = "week" | "recipes" | "favorites" | "more";
 type View =
   | { kind: "list" }
@@ -226,11 +227,7 @@ export default function App() {
         onDelete={() => void remove(view.recipe)}
       />
     ) : page === "recipes" ? (
-      <RecipeLibrary
-        recipes={recipes}
-        onOpen={(recipe) => setView({ kind: "detail", recipe })}
-        onCreate={() => setSheet(true)}
-      />
+      <RecipeSection recipes={recipes} onOpen={(recipe)=>setView({kind:"detail",recipe})} onCreate={()=>setSheet(true)} onSaved={refresh}/>
     ) : page === "favorites" ? (
       <RecipeLibrary
         recipes={recipes}
