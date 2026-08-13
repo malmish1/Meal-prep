@@ -30,7 +30,7 @@ import { RecipeDetail } from "./components/RecipeDetail";
 import { RecipeEditor } from "./components/RecipeEditor";
 import { ImageImport } from "./components/ImageImport";
 import { OriginalImages } from "./components/OriginalImages";
-import { WeekPromotions } from "./components/WeekPromotions";
+import { WeeklyGenerator } from "./components/WeeklyGenerator";
 import { RecipeSection } from "./components/RecipeSection";
 import { InventoryPage } from "./components/InventoryPage";
 import { PersonalizationPage } from "./components/PersonalizationPage";
@@ -247,7 +247,7 @@ export default function App() {
     ) : page === "more" ? (
       <MorePage onRestored={() => void refresh()} onProfile={()=>go("profile")} />
     ) : (
-      <WeekPromotions />
+      <WeeklyGenerator />
     );
   return (
     <div className="app-shell">

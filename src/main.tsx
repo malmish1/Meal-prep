@@ -7,6 +7,8 @@ import './promotions.css'
 import './discovery.css'
 import './personalization.css'
 import './nutrition.css'
+import './weekly.css'
+import './weekly-extra.css'
 
 registerSW({ immediate: true })
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>)

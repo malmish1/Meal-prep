@@ -14,4 +14,5 @@ export async function savePromotionWeek(input:{flyer:Omit<PromotionFlyer,"promot
 export async function listPromotionFlyers(){return (await (await getDB()).getAll("promotionFlyers") as PromotionFlyer[]).sort((a,b)=>b.importedAt.localeCompare(a.importedAt));}
 export async function getPromotionItems(flyerId:string){return ((await (await getDB()).getAll("promotions")) as PromotionItem[]).filter(x=>x.flyerId===flyerId);}
 export async function findFlyerByFingerprint(fingerprint:string){return (await listPromotionFlyers()).find(x=>x.fingerprint===fingerprint);}
-export async function getActivePromotionWeek(){const flyer=(await listPromotionFlyers()).find(x=>x.status==="confirmed");return flyer?{flyer,items:await getPromotionItems(flyer.id)}:undefined;}
+export async function getActivePromotionWeek(){const flyer=(await listPromotionFlyers()).find(x=>x.status==="confirmed");return flyer?{flyer,items:(await getPromotionItems(flyer.id)).map(x=>({...x,normalizedName:canonicalName(x.displayName)}))}:undefined;}
+const canonicalName=(value:string)=>value.trim().toLocaleLowerCase("sv-SE").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ");
