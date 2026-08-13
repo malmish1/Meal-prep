@@ -10,7 +10,6 @@ import {
   Upload,
   UserRound,
   ShieldCheck,
-  Leaf,
   ImageOff,
   PenLine,
 } from "lucide-react";
@@ -29,6 +28,7 @@ import { RecipeDetail } from "./components/RecipeDetail";
 import { RecipeEditor } from "./components/RecipeEditor";
 import { ImageImport } from "./components/ImageImport";
 import { OriginalImages } from "./components/OriginalImages";
+import { WeekPromotions } from "./components/WeekPromotions";
 type Page = "week" | "recipes" | "favorites" | "more";
 type View =
   | { kind: "list" }
@@ -43,34 +43,6 @@ const nav = [
   ["favorites", "Favoriter", Heart],
   ["more", "Mer", MoreHorizontal],
 ] as const;
-function WeekPage() {
-  return (
-    <main className="page">
-      <p className="eyebrow">Din matvecka</p>
-      <h1>Vecka</h1>
-      <section className="hero-card">
-        <div className="hero-icon">
-          <Leaf />
-        </div>
-        <h2>Din nästa matvecka börjar här.</h2>
-        <p>
-          Snart kan du samla veckans måltider på ett lugnt och överskådligt
-          sätt.
-        </p>
-        <div className="coming">
-          <span /> Kommer snart
-        </div>
-      </section>
-      <section className="tip-card">
-        <span>En god vana i taget</span>
-        <p>
-          Meal Prep sparar all din personliga information lokalt på den här
-          enheten.
-        </p>
-      </section>
-    </main>
-  );
-}
 function MorePage({ onRestored }: { onRestored: () => void }) {
   const [name, setName] = useState(""),
     [status, setStatus] = useState("");
@@ -269,7 +241,7 @@ export default function App() {
     ) : page === "more" ? (
       <MorePage onRestored={() => void refresh()} />
     ) : (
-      <WeekPage />
+      <WeekPromotions />
     );
   return (
     <div className="app-shell">

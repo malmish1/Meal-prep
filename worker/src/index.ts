@@ -1,4 +1,5 @@
 import { isRecipeResult, recipeSchema } from "./schema";
+import { isPromotionResult, promotionSchema } from "./promotionSchema";
 
 type Env = { OPENAI_API_KEY: string; ALLOWED_ORIGIN: string };
 const localOrigins = new Set(["http://localhost:5173", "http://127.0.0.1:5173"]);
@@ -12,6 +13,7 @@ export default {
     if (!allowed) return json({ error: "origin_not_allowed" }, 403, headers);
     if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, headers);
 
+    if(new URL(request.url).pathname==="/flyers/analyze") return analyzeFlyer(request,env,headers);
     let images: unknown;
     try { ({ images } = await request.json() as { images?: unknown }); }
     catch { return json({ error: "invalid_request" }, 400, headers); }
@@ -52,6 +54,18 @@ export default {
     } finally { clearTimeout(timeout); }
   },
 };
+
+async function analyzeFlyer(request:Request,env:Env,headers:Record<string,string>){
+ let body:{pdf?:unknown;fileName?:unknown};try{body=await request.json() as typeof body}catch{return json({error:"invalid_request"},400,headers)}
+ if(typeof body.pdf!=="string"||!body.pdf.startsWith("data:application/pdf;base64,")||body.pdf.length>28_000_000||typeof body.fileName!=="string")return json({error:"invalid_pdf"},400,headers);
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),55_000);
+ try{const upstream=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{Authorization:`Bearer ${env.OPENAI_API_KEY}`,"Content-Type":"application/json"},signal:controller.signal,body:JSON.stringify({model:"gpt-4.1-mini-2025-04-14",store:false,max_output_tokens:6000,input:[{role:"user",content:[{type:"input_text",text:flyerPrompt},{type:"input_file",filename:String(body.fileName).slice(0,120),file_data:body.pdf}]}],text:{format:{type:"json_schema",name:"meal_prep_promotions",strict:true,schema:promotionSchema}}})});
+ if(!upstream.ok){const status=upstream.status===429?429:upstream.status===402?402:503;return json({error:status===429?"rate_limit":status===402?"spend_limit":"upstream_unavailable"},status,headers)}
+ const payload=await upstream.json() as {output?:Array<{content?:Array<{type?:string;text?:string}>}>};const text=payload.output?.flatMap(x=>x.content??[]).find(x=>x.type==="output_text")?.text;if(!text)return json({error:"malformed_model_response"},502,headers);const result:unknown=JSON.parse(text);if(!isPromotionResult(result))return json({error:"malformed_model_response"},502,headers);return json(result,200,headers);
+ }catch{return json({error:"upstream_unavailable"},503,headers)}finally{clearTimeout(timeout)}
+}
+
+const flyerPrompt=`Analyze the attached Willys weekly promotional PDF, using both embedded text and page images. Extract real purchasable product promotions only; ignore slogans, recipes, branding, opening hours and general loyalty advertising. Preserve the displayed product name and add a conservative Swedish normalizedName. Parse Swedish prices and decimal commas. Use perKg, perUnit, fixed, multibuy or unknown. For multibuy return quantity and total price. Never invent brand, size, weight, price, dates or conditions: return null and a short Swedish warning when unclear. Categorize conservatively. Confidence is 0–1. Return all relevant pages in one concise structured result.`;
 
 const recipePrompt = `Interpret all attached screenshots, in their given order, as ONE recipe. Semantically distinguish title, introduction, ingredients, instructions, servings, nutrition and source. Ignore phone clock, status bar, browser/navigation/social controls, likes, comments, ads and unrelated recommendations. Remove overlap duplicates across screenshots. Never invent missing quantities, ingredients, times, temperatures, servings or nutrition: use null/empty values and a short Swedish warning. Mark an ingredient uncertain when its name, amount or unit cannot be read confidently. Confidence values must be 0–1. Return only the required structured result.`;
 
