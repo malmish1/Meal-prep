@@ -1,18 +1,12 @@
-import type { PromotionDraft,PromotionFlyer,PromotionItem } from "../domain/promotion";
-import { getDB } from "./db";
-const id=()=>crypto.randomUUID();
-export async function savePromotionWeek(input:{flyer:Omit<PromotionFlyer,"promotionItemIds">;items:Array<PromotionDraft & {id?:string}>}){
- const db=await getDB(),now=new Date().toISOString();
- const items:PromotionItem[]=input.items.map(item=>({...item,id:item.id??id(),flyerId:input.flyer.id,createdAt:now,updatedAt:now}));
- const flyer:PromotionFlyer={...input.flyer,promotionItemIds:items.map(x=>x.id)};
- const tx=db.transaction(["promotions","promotionFlyers"],"readwrite");
- const old=await tx.objectStore("promotions").getAll() as PromotionItem[];
- for(const item of old.filter(x=>x.flyerId===flyer.id))await tx.objectStore("promotions").delete(item.id);
- for(const item of items)await tx.objectStore("promotions").put(item,item.id);
- await tx.objectStore("promotionFlyers").put(flyer,flyer.id); await tx.done; return{flyer,items};
-}
-export async function listPromotionFlyers(){return (await (await getDB()).getAll("promotionFlyers") as PromotionFlyer[]).sort((a,b)=>b.importedAt.localeCompare(a.importedAt));}
-export async function getPromotionItems(flyerId:string){return ((await (await getDB()).getAll("promotions")) as PromotionItem[]).filter(x=>x.flyerId===flyerId);}
-export async function findFlyerByFingerprint(fingerprint:string){return (await listPromotionFlyers()).find(x=>x.fingerprint===fingerprint);}
-export async function getActivePromotionWeek(){const flyer=(await listPromotionFlyers()).find(x=>x.status==="confirmed");return flyer?{flyer,items:(await getPromotionItems(flyer.id)).map(x=>({...x,normalizedName:canonicalName(x.displayName)}))}:undefined;}
+import type{PromotionDraft,PromotionFlyer,PromotionItem}from"../domain/promotion";import{getDB,getSetting,setSetting}from"./db";
+const ACTIVE_KEY="activePromotionFlyerId",id=()=>crypto.randomUUID();
+const safeTime=(f:PromotionFlyer)=>{const n=Date.parse(f.importedAt??"");return Number.isFinite(n)?n:0};
+export async function savePromotionWeek(input:{flyer:Omit<PromotionFlyer,"promotionItemIds">;items:Array<PromotionDraft&{id?:string}>}){const db=await getDB(),now=new Date().toISOString(),flyerId=input.flyer.id||id(),items:PromotionItem[]=input.items.map(item=>({...item,id:item.id&&item.id!==flyerId?item.id:id(),flyerId,createdAt:now,updatedAt:now})),flyer:PromotionFlyer={...input.flyer,id:flyerId,importedAt:input.flyer.importedAt||now,promotionItemIds:items.map(x=>x.id)};const tx=db.transaction(["promotions","promotionFlyers","settings"],"readwrite");for(const item of(await tx.objectStore("promotions").getAll()as PromotionItem[]).filter(x=>x.flyerId===flyer.id))await tx.objectStore("promotions").delete(item.id);for(const item of items)await tx.objectStore("promotions").put(item,item.id);await tx.objectStore("promotionFlyers").put(flyer,flyer.id);await tx.objectStore("settings").put(flyer.id,ACTIVE_KEY);await tx.done;return{flyer,items}}
+export async function listPromotionFlyers(){return(await(await getDB()).getAll("promotionFlyers")as PromotionFlyer[]).filter(x=>x&&typeof x.id==="string").sort((a,b)=>safeTime(b)-safeTime(a))}
+export async function getPromotionItems(flyerId:string){return((await(await getDB()).getAll("promotions"))as PromotionItem[]).filter(x=>x.flyerId===flyerId)}
+export async function findFlyerByFingerprint(fingerprint:string){return(await listPromotionFlyers()).find(x=>x.fingerprint===fingerprint)}
+export async function getActiveFlyerId(){const flyers=await listPromotionFlyers(),stored=await getSetting<string>(ACTIVE_KEY);if(stored&&flyers.some(x=>x.id===stored))return stored;const fallback=flyers[0]?.id;if(fallback)await setSetting(ACTIVE_KEY,fallback);return fallback}
+export async function activatePromotionFlyer(flyerId:string){if(!(await listPromotionFlyers()).some(x=>x.id===flyerId))throw new Error("Reklambladet finns inte.");await setSetting(ACTIVE_KEY,flyerId)}
+export async function deletePromotionFlyer(flyerId:string){const db=await getDB(),active=await getActiveFlyerId(),tx=db.transaction(["promotions","promotionFlyers","settings"],"readwrite");for(const item of(await tx.objectStore("promotions").getAll()as PromotionItem[]).filter(x=>x.flyerId===flyerId))await tx.objectStore("promotions").delete(item.id);await tx.objectStore("promotionFlyers").delete(flyerId);if(active===flyerId)await tx.objectStore("settings").delete(ACTIVE_KEY);await tx.done;if(active===flyerId){const fallback=(await listPromotionFlyers())[0];if(fallback)await setSetting(ACTIVE_KEY,fallback.id)}}
+export async function getActivePromotionWeek(){const flyerId=await getActiveFlyerId();if(!flyerId)return;const flyer=(await listPromotionFlyers()).find(x=>x.id===flyerId);return flyer?{flyer,items:(await getPromotionItems(flyer.id)).map(x=>({...x,normalizedName:canonicalName(x.displayName)}))}:undefined}
 const canonicalName=(value:string)=>value.trim().toLocaleLowerCase("sv-SE").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ");
