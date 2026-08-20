@@ -14,7 +14,9 @@ export type AiRecipeResult = {
   description: string;
   detectedLanguage:"sv"|"en"|"other";
   originalText:string;
-  servings: number | null;
+  originalServings: number | null;
+  /** Temporary response compatibility while the GitHub Pages client and Worker deploy independently. */
+  servings?: number | null;
   ingredients: AiIngredient[];
   instructions: string[];
   nutrition: {
@@ -48,8 +50,7 @@ export class AiVisionAnalyzer implements RecipeImageAnalyzer {
     if (!navigator.onLine) throw new AiAnalysisError("offline");
     if (!apiUrl) throw new AiAnalysisError("unavailable");
     status("Förbereder bilder…");
-    const images: string[] = [];
-    for (const file of files) images.push(await optimizeRecipeImage(file));
+    const images = await Promise.all(files.map(optimizeRecipeImage));
     status("AI-tolkar receptet…");
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 45_000);
@@ -78,7 +79,8 @@ export class AiVisionAnalyzer implements RecipeImageAnalyzer {
 export function toRecipeDraft(result: AiRecipeResult): RecipeDraft {
   const base = emptyRecipe();
   const warnings = [...result.warnings];
-  if (result.servings === null) warnings.push("Kontrollera portionsantal – det kunde inte läsas säkert.");
+  const originalServings = result.originalServings ?? result.servings ?? null;
+  if (originalServings === null) warnings.push("Originalportioner saknas – fyll i dem för tillförlitlig skalning.");
   if (result.confidence.title < 0.7) warnings.push("Kontrollera receptets titel.");
   return {
     ...base,
@@ -90,7 +92,8 @@ export function toRecipeDraft(result: AiRecipeResult): RecipeDraft {
     importWarnings: [...new Set(warnings)],
     sourceName: result.source.name ?? "",
     sourceUrl: result.source.url ?? "",
-    servings: result.servings ?? undefined,
+    servings: originalServings ?? undefined,
+    originalServings,
     caloriesPerServing: result.nutrition.caloriesPerServing ?? undefined,
     proteinGramsPerServing: result.nutrition.proteinGramsPerServing ?? undefined,
     carbsGramsPerServing: result.nutrition.carbsGramsPerServing ?? undefined,

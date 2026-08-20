@@ -122,13 +122,15 @@ export function RecipeEditor({
             />
           </Field>
           <div className="field-grid">
-            <Field label="Portioner">
+            <Field label="Originalportioner">
               <input
                 type="number"
                 min="1"
-                value={draft.servings ?? ""}
-                onChange={(e) => set("servings", number(e.target.value))}
+                value={draft.originalServings ?? ""}
+                onChange={(e) => {const value=number(e.target.value)??null;set("originalServings",value);set("servings",value??undefined)}}
+                placeholder="Okänt"
               />
+              <small>Receptets ursprungliga antal portioner. Behövs för säker skalning.</small>
             </Field>
             <Field label="Kök">
               <input

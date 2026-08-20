@@ -1,12 +1,13 @@
 export const recipeSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "description", "detectedLanguage", "originalText", "servings", "ingredients", "instructions", "nutrition", "source", "confidence", "warnings"],
+  required: ["title", "description", "detectedLanguage", "originalText", "originalServings", "servings", "ingredients", "instructions", "nutrition", "source", "confidence", "warnings"],
   properties: {
     title: { type: "string" },
     description: { type: "string" },
     detectedLanguage: { type:"string", enum:["sv","en","other"] },
     originalText: { type:"string" },
+    originalServings: { type: ["number", "null"] },
     servings: { type: ["number", "null"] },
     ingredients: {
       type: "array",
@@ -44,7 +45,7 @@ function nullableNumbers(keys: string[]) {
 export function isRecipeResult(value: unknown): value is Record<string, unknown> {
   if (!value || typeof value !== "object") return false;
   const v = value as Record<string, unknown>;
-  return typeof v.title === "string" && typeof v.description === "string" && ["sv","en","other"].includes(String(v.detectedLanguage)) && typeof v.originalText === "string" &&
+  return typeof v.title === "string" && typeof v.description === "string" && ["sv","en","other"].includes(String(v.detectedLanguage)) && typeof v.originalText === "string" && (v.originalServings===null||(typeof v.originalServings==="number"&&v.originalServings>0)) && v.servings===v.originalServings &&
     Array.isArray(v.ingredients) && v.ingredients.every((item) => {
       if (!item || typeof item !== "object") return false;
       const i = item as Record<string, unknown>;
