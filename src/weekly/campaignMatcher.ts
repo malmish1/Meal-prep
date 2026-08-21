@@ -13,6 +13,8 @@ export const INGREDIENT_TAXONOMY:IngredientConcept[]=[
  {id:"GROUND_BEEF",aliases:["notfars","kottfars av not","notfars 5","notfars 10","notfars 12","notfars 20"]},
  {id:"CREME_FRAICHE",aliases:["creme fraiche"]},
  {id:"OATS",aliases:["havregryn","fiberhavregryn","fullkornshavregryn"]},
+ {id:"TOMATO",aliases:["tomat","tomater","kvisttomat","kvisttomater"]},
+ {id:"GROUND_PORK",aliases:["flaskfars","flaskfars 20","flaskkottfars"]},
 ];
 const noise=/\b(svensk|ekologisk|extra|klassisk|original|ca|cirka|kg|gram|g|st|pack|paket)\b/g;
 export function normalizeIngredient(value:string){return value.toLocaleLowerCase("sv-SE").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/%/g," ").replace(/[^a-z0-9 ]/g," ").replace(noise," ").replace(/\s+/g," ").trim()}
@@ -22,5 +24,22 @@ export function ingredientCampaignMatch(ingredient:string,promotion:string){retu
 export interface CampaignMatch{promotionId:string;promotionName:string;ingredientName:string;promotionPrice:number|null;promotionPriceType:string;kind:MatchKind;quality:"strong";relevance:number}
 const numericQuantity=(value:string)=>{const match=value.trim().replace(",",".").match(/^\d+(?:\.\d+)?/);return match?Number(match[0]):null};
 const ingredientRelevance=(recipe:Pick<Recipe,"ingredients">,index:number)=>{const ingredient=recipe.ingredients[index],amount=numericQuantity(ingredient.quantity),position=index<3?2:index<6?1.4:1,quantity=amount==null?1:amount>=500?1.5:amount>=100?1.25:amount>=2?1.1:1;return Math.round(position*quantity*100)/100};
-export function campaignMatches(recipe:Pick<Recipe,"ingredients">,promotions:PromotionItem[]):CampaignMatch[]{const result:CampaignMatch[]=[];for(const p of promotions.filter(x=>!x.ignored)){let found:CampaignMatch|undefined;for(const[ingredientIndex,ingredient]of recipe.ingredients.entries()){const match=matchIngredientConcept(ingredient.name,p.displayName)||matchIngredientConcept(ingredient.name,p.normalizedName);if(match){found={promotionId:p.id,promotionName:p.displayName,ingredientName:ingredient.name,promotionPrice:p.price,promotionPriceType:p.priceType,kind:match.kind,quality:"strong",relevance:ingredientRelevance(recipe,ingredientIndex)};break}}if(found)result.push(found)}return result}
+const priceTypePriority:Record<string,number>={perKg:5,perUnit:4,multibuy:3,fixed:2,unknown:1};
+const preferOffer=(a:{promotion:PromotionItem;kind:MatchKind},b:{promotion:PromotionItem;kind:MatchKind})=>{
+ const kind=(b.kind==="normalized"?1:0)-(a.kind==="normalized"?1:0);if(kind)return kind;
+ const type=(priceTypePriority[b.promotion.priceType]??0)-(priceTypePriority[a.promotion.priceType]??0);if(type)return type;
+ if(a.promotion.price==null)return b.promotion.price==null?0:1;if(b.promotion.price==null)return-1;
+ return a.promotion.price-b.promotion.price;
+};
+export function campaignMatches(recipe:Pick<Recipe,"ingredients">,promotions:PromotionItem[]):CampaignMatch[]{
+ const result:CampaignMatch[]=[],seenConcepts=new Set<string>(),active=promotions.filter(x=>!x.ignored);
+ for(const[ingredientIndex,ingredient]of recipe.ingredients.entries()){
+  const candidates=active.flatMap(p=>{const match=matchIngredientConcept(ingredient.name,p.displayName)||matchIngredientConcept(ingredient.name,p.normalizedName);return match?[{promotion:p,kind:match.kind,concept:match.concept}]:[]});
+  if(!candidates.length)continue;
+  const concept=candidates[0].concept;if(seenConcepts.has(concept))continue;
+  seenConcepts.add(concept);const primary=[...candidates].sort(preferOffer)[0];
+  result.push({promotionId:primary.promotion.id,promotionName:primary.promotion.displayName,ingredientName:ingredient.name,promotionPrice:primary.promotion.price,promotionPriceType:primary.promotion.priceType,kind:primary.kind,quality:"strong",relevance:ingredientRelevance(recipe,ingredientIndex)});
+ }
+ return result;
+}
 export const campaignRelevance=(matches:CampaignMatch[])=>matches.reduce((total,match)=>total+match.relevance,0);

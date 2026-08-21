@@ -44,6 +44,14 @@ export function calculateNutritionSummary(input:WeeklySelections,plannedDays:num
  const plannedDaily=scheduleComplete?daily:null;return{categories,plannedDaily,targetCalories,differenceCalories:plannedDaily&&targetCalories!=null?targetCalories-plannedDaily.calories:null,missingNutritionCount:missing,scheduleComplete}
 }
 
+export interface SelectionDailyAverage{totals:NutritionTotals|null;selectionCount:number;missingNutritionCount:number}
+export function calculateSelectionDailyAverage(input:WeeklySelections,plannedDays:number):SelectionDailyAverage{
+ const selections=MEAL_CATEGORIES.flatMap(category=>input[category]),parts=selections.map(nutritionFor),missingNutritionCount=parts.filter(part=>part==null).length;
+ if(!selections.length||missingNutritionCount||plannedDays<1)return{totals:null,selectionCount:selections.length,missingNutritionCount};
+ const batch=(parts as NutritionTotals[]).reduce(addTotals,{calories:0,protein:0,carbs:0,fat:0});
+ return{totals:{calories:batch.calories/plannedDays,protein:batch.protein/plannedDays,carbs:batch.carbs/plannedDays,fat:batch.fat/plannedDays},selectionCount:selections.length,missingNutritionCount};
+}
+
 export function createWeeklyPlan(input:{profile:DietProfile;flyer?:PromotionFlyer;recommendations:Record<MealCategory,WeeklyRecommendation[]>;selections:WeeklySelections;inventory:InventoryItem[];promotions:PromotionItem[];macroFilters:MacroFilters;plannedDays:number}):WeeklyPlan{const now=new Date().toISOString();return{id:crypto.randomUUID(),createdAt:now,updatedAt:now,dietPhaseSnapshot:input.profile.phase,calorieTargetSnapshot:input.profile.dailyCalories,macroFiltersSnapshot:input.macroFilters,activeFlyerId:input.flyer?.id,plannedDays:Math.min(7,Math.max(1,input.plannedDays)),recommendations:input.recommendations,selections:input.selections,shoppingList:buildShoppingList(input.selections,input.inventory,input.promotions),status:"finalized"}}
 const recalculate=(plan:WeeklyPlan,selections:WeeklySelections,inventory:InventoryItem[],promotions:PromotionItem[],plannedDays=plan.plannedDays):WeeklyPlan=>({...plan,plannedDays,updatedAt:new Date().toISOString(),selections,shoppingList:buildShoppingList(selections,inventory,promotions)});
 export function addWeeklySelection(plan:WeeklyPlan,category:MealCategory,recipe:WeeklyRecommendation,inventory:InventoryItem[],promotions:PromotionItem[],desiredServings=5){return recalculate(plan,{...plan.selections,[category]:[...plan.selections[category],makeWeeklySelection(recipe,desiredServings)]},inventory,promotions)}
@@ -54,6 +62,25 @@ export function updatePlannedDays(plan:WeeklyPlan,plannedDays:number,inventory:I
 
 export function normalizeWeeklyPlan(value:unknown):WeeklyPlan{const raw=value as WeeklyPlan&{selections?:unknown;plannedDays?:number},selections=emptyWeeklySelections();for(const category of MEAL_CATEGORIES){const categoryValue=(raw.selections as any)?.[category];if(Array.isArray(categoryValue))selections[category]=categoryValue.map((item:any)=>item?.recipe?{id:item.id??crypto.randomUUID(),recipe:{...item.recipe,originalServings:item.recipe.originalServings??item.recipe.servings??null,campaignRelevance:item.recipe.campaignRelevance??0},desiredServings:Math.max(1,Number(item.desiredServings)||5),label:String(item.label??"")}:makeWeeklySelection({...item,originalServings:item.originalServings??item.servings??null,campaignRelevance:item.campaignRelevance??0},5));else if(categoryValue)selections[category]=[makeWeeklySelection({...categoryValue,originalServings:categoryValue.originalServings??categoryValue.servings??null,campaignRelevance:categoryValue.campaignRelevance??0},5)]}return{...raw,plannedDays:Math.min(7,Math.max(1,Number(raw.plannedDays)||5)),selections,shoppingList:Array.isArray(raw.shoppingList)?raw.shoppingList.map((item:any)=>({...item,requiredQuantity:item.requiredQuantity??item.quantity??null,buyQuantity:item.buyQuantity??item.quantity??null,quantity:item.buyQuantity??item.quantity??null})):[]}}
 
-const section=(item:ShoppingItem)=>{const name=item.normalizedName;if(/kyck|kött|färs|lax|fisk|ägg|kvarg/.test(name))return"KÖTT & PROTEIN";if(/mjölk|grädde|yoghurt|ost|fraiche|smör/.test(name))return"MEJERI";if(/paprika|broccoli|lök|spenat|tomat|frukt|citron|äpple|banan/.test(name))return"FRUKT & GRÖNT";return"SKAFFERI"};
-const amount=(value:number|null,unit:string|null)=>value==null?"Kontrollera":`${Math.round(value*100)/100} ${unit??""}`.trim();
-export function formatShoppingList(items:ShoppingItem[]){const groups=new Map<string,ShoppingItem[]>();for(const item of items){const key=section(item);groups.set(key,[...(groups.get(key)??[]),item])}const lines=["INKÖPSLISTA — MEAL PREP",""];for(const[key,values]of groups){lines.push(key,...values.map(item=>`${(item.buyQuantity??item.quantity)===0?"✓":"☐"} ${item.displayName} — Köp ${amount(item.buyQuantity??item.quantity,item.unit)} (Behövs ${amount(item.requiredQuantity,item.unit)}; Hemma ${amount(item.homeQuantity,item.unit)})${item.promotion?` — Willys${item.promotion.price!=null?` ${item.promotion.price} kr`:""}`:""}`),"")}return lines.join("\n").trim()}
+export const GROCERY_CATEGORIES=["FRUKT & GRÖNT","KÖTT & PROTEIN","MEJERI & KYL","ÄGG","SKAFFERI","FRYST","BRÖD","ÖVRIGT"]as const;
+export type GroceryCategory=typeof GROCERY_CATEGORIES[number];
+export function groceryCategory(item:Pick<ShoppingItem,"normalizedName"|"displayName">):GroceryCategory{
+ const name=normalizeFoodName(item.normalizedName||item.displayName);
+ if(/\b(agg|honsagg)\b/.test(name))return"ÄGG";
+ if(/\b(gurka|potatis|rodlok|lok|sallad|tomat|paprika|broccoli|spenat|morot|kål|kal|avokado|citron|lime|apple|banan|frukt|bar|persilja|dill|vitlok)\b/.test(name))return"FRUKT & GRÖNT";
+ if(/\b(kyckling|file|kott|fars|flask|not|lax|fisk|tonfisk|tofu|quorn|korv)\b/.test(name))return"KÖTT & PROTEIN";
+ if(/\b(mjolk|grädde|gradde|yoghurt|kvarg|ost|fraiche|smor|kesella|keso)\b/.test(name))return"MEJERI & KYL";
+ if(/\b(frust|fryst|glass)\b/.test(name))return"FRYST";
+ if(/\b(brod|tortilla|wrap|fralla|limpa)\b/.test(name))return"BRÖD";
+ if(/\b(ris|pasta|havregryn|fiberhavregryn|mjol|olja|honung|musli|müsli|salt|peppar|krydda|buljong|sas|sås|konserv|bonor|linser|notter|nötter)\b/.test(name))return"SKAFFERI";
+ return"ÖVRIGT";
+}
+const swedishNumber=(value:number)=>value.toLocaleString("sv-SE",{maximumFractionDigits:2});
+export function practicalAmount(value:number,unit:string|null){if(unit==="g"&&value>=1000)return`${swedishNumber(value/1000)} kg`;if(unit==="ml"&&value>=1000)return`${swedishNumber(value/1000)} l`;return`${swedishNumber(value)}${unit?` ${unit}`:""}`}
+const capitalize=(value:string)=>value?value[0].toLocaleUpperCase("sv-SE")+value.slice(1):value;
+export function formatShoppingList(items:ShoppingItem[]){
+ const numeric=items.filter(item=>{const value=item.buyQuantity??item.quantity;return value!=null&&value>0}),unknown=items.filter(item=>(item.buyQuantity??item.quantity)==null),lines=["INKÖPSLISTA",""];
+ for(const category of GROCERY_CATEGORIES){const values=numeric.filter(item=>groceryCategory(item)===category);if(values.length)lines.push(category,...values.map(item=>`${capitalize(item.displayName)} — ${practicalAmount((item.buyQuantity??item.quantity)!,item.unit)}`),"")}
+ if(unknown.length)lines.push("KONTROLLERA",...unknown.map(item=>capitalize(item.displayName)),"");
+ return lines.join("\n").trim();
+}
