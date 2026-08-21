@@ -19,6 +19,7 @@ describe("mobile planner UX regression", () => {
     expect(weeklyCss).not.toContain(".selection-button{position:absolute");
     expect(weeklyCss).toContain(".edit-proposal{display:flex");
     expect(weeklyCss).toContain(".edit-proposal{align-items:stretch;flex-direction:column}");
+    expect(weeklyCss).toContain(".campaign-ingredients span{box-sizing:border-box;max-width:100%;overflow-wrap:anywhere");
     expect(promotionCss).toContain("env(safe-area-inset-bottom)");
   });
 
@@ -30,5 +31,7 @@ describe("mobile planner UX regression", () => {
     expect(component).toContain("calculateSelectionDailyAverage");
     expect(component).toContain("proposedSelections");
     expect(component).toContain("BEKRÄFTA BYTE");
+    expect(component).toContain("CampaignCardStatus");
+    expect(component).toContain("Inga kampanjträffar");
   });
 });

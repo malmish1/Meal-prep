@@ -21,6 +21,7 @@ beforeEach(async()=>{
 async function seedRecipe(){
  await saveRecipe({...emptyRecipe(),title,sourceType:"manual",originalServings:4,servings:4,mealTypes:["Lunch"],primaryProtein:"Kyckling",caloriesPerServing:600,proteinGramsPerServing:45,carbsGramsPerServing:60,fatGramsPerServing:20,ingredients:[{id:"i",name:"Kycklingfilé",quantity:"800",unit:"g"}],instructions:[]});
 }
+async function seedLunch(title:string,ingredients:string[]){await saveRecipe({...emptyRecipe(),title,sourceType:"manual",originalServings:4,servings:4,mealTypes:["Lunch"],primaryProtein:title,caloriesPerServing:600,proteinGramsPerServing:45,carbsGramsPerServing:60,fatGramsPerServing:20,ingredients:ingredients.map((name,index)=>({id:`${title}-${index}`,name,quantity:"1",unit:"st"})),instructions:[]})}
 
 describe("weekly campaign and planner UI",()=>{
  it("shows one compact campaign row and no duplicate protein reason",async()=>{
@@ -51,6 +52,14 @@ describe("weekly campaign and planner UI",()=>{
   await user.click(screen.getByRole("button",{name:`Öka portioner ${title}`}));
   expect(within(macroBar).getByText("🔥 720 kcal")).toBeInTheDocument();
   expect(screen.getByRole("status",{name:`portioner ${title}`})).toHaveTextContent("6");
+ });
+
+ it("shows unique campaign counts, ingredient mappings and stable strongest-first order on every lunch card",async()=>{
+  await seedLunch("Lunch A",["Kycklingfilé","Basmatiris","Paprika","Crème fraîche"]);await seedLunch("Lunch B",["Kycklingfilé"]);await seedLunch("Lunch C",["Kokosmjölk"]);await seedLunch("Lunch D",["Kycklingfilé","Paprika","Crème fraîche"]);
+  const offer=(id:string,displayName:string,price:number)=>({...emptyPromotion(),id,displayName,normalizedName:displayName.toLocaleLowerCase("sv-SE"),price,priceType:"perKg"as const});await savePromotionWeek({flyer:{id:"active",store:"Willys",fileName:"aktiv.pdf",fingerprint:"active-fp",importedAt:new Date().toISOString(),analysisVersion:"flyer-v1",provider:"OpenAI",status:"confirmed"},items:[offer("chicken-a","Kycklingfilé",89.9),offer("chicken-b","Kycklingfilé",79.9),offer("rice","Jasminris",29.9),offer("pepper","Paprika",24.9),offer("fraiche","Crème fraîche",15)]});
+  const user=userEvent.setup();render(<WeeklyGenerator/>);await user.click(await screen.findByRole("button",{name:"GENERERA FÖRSLAG"}));const toggle=screen.getByRole("button",{name:/Lunch.*0 recept valda/i}),section=toggle.closest("section")!,titles=()=>[...section.querySelectorAll(".recommendation-title")].map(node=>node.textContent);expect(titles()).toEqual(["Lunch A","Lunch D","Lunch B","Lunch C"]);
+  const cards=[...section.querySelectorAll<HTMLElement>(".recommendation-card")],a=cards.find(card=>within(card).queryByText("Lunch A"))!,d=cards.find(card=>within(card).queryByText("Lunch D"))!,b=cards.find(card=>within(card).queryByText("Lunch B"))!,c=cards.find(card=>within(card).queryByText("Lunch C"))!;expect(within(a).getByText("💰 4 kampanjvaror")).toBeInTheDocument();expect(within(d).getByText("💰 3 kampanjvaror")).toBeInTheDocument();expect(within(b).getByText("💰 1 kampanjvara")).toBeInTheDocument();expect(within(c).getByText("Inga kampanjträffar")).toBeInTheDocument();const rows=[...a.querySelectorAll(".campaign-ingredients span")].map(node=>node.textContent);expect(rows).toHaveLength(4);expect(rows).toContain("✓ Basmatiris → Jasminris — 29,9 kr/kg");expect(rows.filter(row=>row?.includes("Kycklingfilé"))).toEqual(["✓ Kycklingfilé — 79,9 kr/kg"]);
+  await user.click(toggle);expect(section.querySelectorAll(".recommendation-card")).toHaveLength(0);await user.click(toggle);expect(titles()).toEqual(["Lunch A","Lunch D","Lunch B","Lunch C"]);expect(within(section).getByText("💰 4 kampanjvaror")).toBeInTheDocument();
  });
 
  it("previews full-week macros in change mode, cancels cleanly and confirms consistently",async()=>{
