@@ -2,14 +2,19 @@ import type { DietProfile, InventoryItem, StandardMeal } from "../domain/persona
 import { normalizeFoodName } from "../domain/personalization";
 import type { PromotionFlyer, PromotionItem } from "../domain/promotion";
 import type { Recipe } from "../domain/recipe";
-import { diverseTop, emptyDiagnostics, emptyWeeklySelections, MEAL_CATEGORIES, recipeToRecommendation, standardRecommendation, type FilterDiagnostics, type MacroFilters, type MealCategory, type ShoppingItem, type WeeklyPlan, type WeeklyRecommendation, type WeeklySelection, type WeeklySelections } from "../domain/weeklyPlan";
+import { emptyDiagnostics, emptyWeeklySelections, MEAL_CATEGORIES, recipeToRecommendation, standardRecommendation, type FilterDiagnostics, type MacroFilters, type MealCategory, type ShoppingItem, type WeeklyPlan, type WeeklyRecommendation, type WeeklySelection, type WeeklySelections } from "../domain/weeklyPlan";
 import { ingredientCampaignMatch } from "./campaignMatcher";
 
 export interface RecommendationResult{recommendations:Record<MealCategory,WeeklyRecommendation[]>;diagnostics:Record<MealCategory,FilterDiagnostics>;totalCandidates:number}
-export function buildRecommendationResult(input:{profile:DietProfile;breakfast:StandardMeal;snack:StandardMeal;recipes:Recipe[];promotions:PromotionItem[];inventory:InventoryItem[];macroFilters:MacroFilters;excludedIds?:Set<string>}):RecommendationResult{
- const recipes=input.recipes,context={dailyCalories:input.profile.dailyCalories,proteinPriority:input.profile.proteinPriority,promotions:input.promotions,inventory:input.inventory,macroFilters:input.macroFilters},diagnostics={breakfast:emptyDiagnostics(),lunch:emptyDiagnostics(),dinner:emptyDiagnostics(),snack:emptyDiagnostics()};
- const build=(category:MealCategory)=>recipes.map(recipe=>recipeToRecommendation(recipe,category,context,diagnostics[category])).filter((x):x is WeeklyRecommendation=>!!x&&!input.excludedIds?.has(x.id)).sort((a,b)=>b.score-a.score);
- return{recommendations:{breakfast:[...build("breakfast"),standardRecommendation(input.breakfast,"breakfast")],lunch:build("lunch"),dinner:build("dinner"),snack:[...build("snack"),standardRecommendation(input.snack,"snack")]},diagnostics,totalCandidates:recipes.length}
+export type RecipeCandidateInput={profile:DietProfile;recipes:Recipe[];promotions:PromotionItem[];inventory:InventoryItem[];macroFilters:MacroFilters;excludedIds?:Set<string>};
+export function compareRecipeCandidates(a:WeeklyRecommendation,b:WeeklyRecommendation){return(b.campaignMatches?.length??0)-(a.campaignMatches?.length??0)||b.campaignRelevance-a.campaignRelevance||b.score-a.score||a.title.localeCompare(b.title,"sv")}
+export function getEligibleRecipesForMealType(input:RecipeCandidateInput,category:MealCategory,diagnostics=emptyDiagnostics()){
+ const context={dailyCalories:input.profile.dailyCalories,proteinPriority:input.profile.proteinPriority,promotions:input.promotions,inventory:input.inventory,macroFilters:input.macroFilters};
+ return input.recipes.map(recipe=>recipeToRecommendation(recipe,category,context,diagnostics)).filter((candidate):candidate is WeeklyRecommendation=>!!candidate&&!input.excludedIds?.has(candidate.id)).sort(compareRecipeCandidates);
+}
+export function buildRecommendationResult(input:RecipeCandidateInput&{breakfast:StandardMeal;snack:StandardMeal}):RecommendationResult{
+ const diagnostics={breakfast:emptyDiagnostics(),lunch:emptyDiagnostics(),dinner:emptyDiagnostics(),snack:emptyDiagnostics()},build=(category:MealCategory)=>getEligibleRecipesForMealType(input,category,diagnostics[category]);
+ return{recommendations:{breakfast:[...build("breakfast"),standardRecommendation(input.breakfast,"breakfast")],lunch:build("lunch"),dinner:build("dinner"),snack:[...build("snack"),standardRecommendation(input.snack,"snack")]},diagnostics,totalCandidates:input.recipes.length}
 }
 export const buildRecommendations=(input:Parameters<typeof buildRecommendationResult>[0])=>buildRecommendationResult(input).recommendations;
 
@@ -50,6 +55,11 @@ export function calculateSelectionDailyAverage(input:WeeklySelections,plannedDay
  if(!selections.length||missingNutritionCount||plannedDays<1)return{totals:null,selectionCount:selections.length,missingNutritionCount};
  const batch=(parts as NutritionTotals[]).reduce(addTotals,{calories:0,protein:0,carbs:0,fat:0});
  return{totals:{calories:batch.calories/plannedDays,protein:batch.protein/plannedDays,carbs:batch.carbs/plannedDays,fat:batch.fat/plannedDays},selectionCount:selections.length,missingNutritionCount};
+}
+
+export function previewWeeklySelection(input:WeeklySelections,category:MealCategory,selectionId:string|undefined,replacement:WeeklyRecommendation,desiredServings:number):WeeklySelections{
+ const next={...input,[category]:selectionId?input[category].map(item=>item.id===selectionId?{...item,recipe:replacement}:item):[...input[category],{id:`preview-${replacement.id}`,recipe:replacement,desiredServings:Math.max(1,Math.round(desiredServings)),label:""}]};
+ return next;
 }
 
 export function createWeeklyPlan(input:{profile:DietProfile;flyer?:PromotionFlyer;recommendations:Record<MealCategory,WeeklyRecommendation[]>;selections:WeeklySelections;inventory:InventoryItem[];promotions:PromotionItem[];macroFilters:MacroFilters;plannedDays:number}):WeeklyPlan{const now=new Date().toISOString();return{id:crypto.randomUUID(),createdAt:now,updatedAt:now,dietPhaseSnapshot:input.profile.phase,calorieTargetSnapshot:input.profile.dailyCalories,macroFiltersSnapshot:input.macroFilters,activeFlyerId:input.flyer?.id,plannedDays:Math.min(7,Math.max(1,input.plannedDays)),recommendations:input.recommendations,selections:input.selections,shoppingList:buildShoppingList(input.selections,input.inventory,input.promotions),status:"finalized"}}

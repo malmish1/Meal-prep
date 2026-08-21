@@ -17,6 +17,8 @@ describe("mobile planner UX regression", () => {
     expect(weeklyCss).toContain("grid-template-columns:minmax(0,1fr) auto");
     expect(weeklyCss).toContain("overflow-wrap:anywhere");
     expect(weeklyCss).not.toContain(".selection-button{position:absolute");
+    expect(weeklyCss).toContain(".edit-proposal{display:flex");
+    expect(weeklyCss).toContain(".edit-proposal{align-items:stretch;flex-direction:column}");
     expect(promotionCss).toContain("env(safe-area-inset-bottom)");
   });
 
@@ -26,5 +28,7 @@ describe("mobile planner UX regression", () => {
     expect(component).toContain("aria-expanded={!collapsed}");
     expect(component).toContain("LiveDailyMacroBar");
     expect(component).toContain("calculateSelectionDailyAverage");
+    expect(component).toContain("proposedSelections");
+    expect(component).toContain("BEKRÄFTA BYTE");
   });
 });
