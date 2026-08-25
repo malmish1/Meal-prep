@@ -7,9 +7,10 @@ import { getActivePromotionWeek,listPromotionFlyers,savePromotionWeek } from "..
 import { emptyPromotion } from "../domain/promotion";
 
 const flyerMocks=vi.hoisted(()=>({analyze:vi.fn(),fingerprint:vi.fn(async()=>"new-fingerprint")}));
-vi.mock("../promotion/flyerAnalyzer",()=>{
+vi.mock("../promotion/flyerAnalyzer",async(importOriginal)=>{
+ const actual=await importOriginal<typeof import("../promotion/flyerAnalyzer")>();
  class FlyerAnalysisError extends Error{constructor(public code:string){super(code)}}
- return{FlyerAnalysisError,fingerprintFile:flyerMocks.fingerprint,analyzeFlyer:flyerMocks.analyze};
+ return{...actual,FlyerAnalysisError,fingerprintFile:flyerMocks.fingerprint,analyzeFlyer:flyerMocks.analyze};
 });
 
 const flyer=(id:string,fileName:string,importedAt:string)=>({id,store:"Willys" as const,fileName,fingerprint:id,importedAt,validFrom:null,validTo:null,numberOfPages:4,analysisVersion:"flyer-v1",provider:"OpenAI" as const,status:"confirmed" as const});

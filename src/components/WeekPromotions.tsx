@@ -1,7 +1,7 @@
 import { useEffect,useRef,useState } from "react";
 import { FileUp,Plus,Tag,Trash2 } from "lucide-react";
 import { categoryLabels,emptyPromotion,priceTypeLabels,promotionCategories,priceTypes,type PromotionDraft,type PromotionFlyer,type PromotionItem } from "../domain/promotion";
-import { analyzeFlyer,FlyerAnalysisError,fingerprintFile,type FlyerProgress } from "../promotion/flyerAnalyzer";
+import { analyzeFlyer,flyerErrorText,FlyerAnalysisError,fingerprintFile,type FlyerProgress } from "../promotion/flyerAnalyzer";
 import { activatePromotionFlyer,deletePromotionFlyer,findFlyerByFingerprint,getActivePromotionWeek,getActiveFlyerId,listPromotionFlyers,savePromotionWeek } from "../storage/promotions";
 type ReviewItem=PromotionDraft&{id?:string};
 type OperationKind="idle"|FlyerProgress|"success"|"error"|"deleting"|"saving"|"activating";
@@ -29,4 +29,4 @@ function PromotionList({items}:{items:PromotionItem[]}){return <section classNam
 const formatPrice=(x:PromotionItem)=>x.multibuy?`${x.multibuy.quantity} för ${x.multibuy.totalPrice.toLocaleString("sv-SE")} kr`:x.price==null?"Pris osäkert":`${x.price.toLocaleString("sv-SE")} kr${x.priceType==="perKg"?"/kg":x.priceType==="perUnit"?"/st":""}`;
 const dateRange=(f:PromotionFlyer)=>f.validFrom&&f.validTo?`${f.validFrom}–${f.validTo}`:new Date(f.importedAt).toLocaleDateString("sv-SE");
 const flyerName=(f:PromotionFlyer)=>{if(f.validFrom){const d=new Date(`${f.validFrom}T12:00:00`),start=new Date(d.getFullYear(),0,1),week=Math.ceil((((d.getTime()-start.getTime())/86400000)+start.getDay()+1)/7);return`Willys vecka ${week}`}return f.fileName||"Willys reklamblad"};
-function errorText(code:string){if(code==="invalid_pdf")return"Välj ett giltigt PDF-reklamblad på högst 20 MB.";if(code==="no_promotions")return"Inga tydliga kampanjer hittades.";if(code==="rate_limit")return"AI-tjänsten är tillfälligt upptagen. Försök igen senare.";if(code==="spend_limit")return"Projektets kostnadsgräns är nådd.";if(code==="analysis_timeout")return"Reklambladet tog för lång tid att tolka. Försök igen — större reklamblad kan behöva lite mer tid.";if(code==="authentication_failed")return"AI-tjänstens serveranslutning behöver återställas.";if(code==="worker_unavailable")return"AI-tolkningen kunde inte slutföras. Kontrollera internetanslutningen.";return"AI-tolkningen kunde inte slutföras. Försök igen."}
+const errorText=flyerErrorText;
