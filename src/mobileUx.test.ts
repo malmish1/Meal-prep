@@ -20,6 +20,8 @@ describe("mobile planner UX regression", () => {
     expect(weeklyCss).toContain(".edit-proposal{display:flex");
     expect(weeklyCss).toContain(".edit-proposal{align-items:stretch;flex-direction:column}");
     expect(weeklyCss).toContain(".campaign-ingredients span{box-sizing:border-box;max-width:100%;overflow-wrap:anywhere");
+    expect(weeklyCss).toContain(".scaling-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}");
+    expect(weeklyCss).toContain(".plan-category .collapsible-content{padding-inline:.75rem}");
     expect(promotionCss).toContain("env(safe-area-inset-bottom)");
   });
 
@@ -33,5 +35,7 @@ describe("mobile planner UX regression", () => {
     expect(component).toContain("BEKRÄFTA BYTE");
     expect(component).toContain("CampaignCardStatus");
     expect(component).toContain("Inga kampanjträffar");
+    expect(component).toContain("GODKÄNN FÖRSLAG");
+    expect(component).toContain("meal-prep-week-sections");
   });
 });

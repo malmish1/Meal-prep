@@ -42,16 +42,22 @@ describe("weekly campaign and planner UI",()=>{
   const lunchToggle=screen.getByRole("button",{name:/Lunch.*0 recept valda/i}),lunchSection=lunchToggle.closest("section")!;
   await user.click(within(lunchSection).getByRole("button",{name:"VÄLJ"}));
   const macroBar=screen.getByText("DAGLIGT SNITT").closest("aside")!;
-  expect(within(macroBar).getByText("🔥 600 kcal")).toBeInTheDocument();
+  expect(within(macroBar).getByText(/🔥 600 \/ 2.?500 kcal/)).toBeInTheDocument();
   expect(within(lunchSection).getByText(/1 recept valda · 5 portioner/)).toBeInTheDocument();
   await user.click(screen.getByRole("button",{name:/Lunch.*1 recept valda/i}));
   expect(screen.queryByText("Ta bort valet")).not.toBeInTheDocument();
-  expect(within(macroBar).getByText("🔥 600 kcal")).toBeInTheDocument();
+  expect(within(macroBar).getByText(/🔥 600 \/ 2.?500 kcal/)).toBeInTheDocument();
   await user.click(screen.getByRole("button",{name:/Lunch.*1 recept valda/i}));
   expect(screen.getByText("Ta bort valet")).toBeInTheDocument();
   await user.click(screen.getByRole("button",{name:`Öka portioner ${title}`}));
-  expect(within(macroBar).getByText("🔥 720 kcal")).toBeInTheDocument();
+  expect(within(macroBar).getByText(/🔥 720 \/ 2.?500 kcal/)).toBeInTheDocument();
   expect(screen.getByRole("status",{name:`portioner ${title}`})).toHaveTextContent("6");
+ });
+
+ it("previews smart scaling before approval and supports expand or collapse all",async()=>{
+  await seedRecipe();const user=userEvent.setup();render(<WeeklyGenerator/>);await user.click(await screen.findByRole("button",{name:"GENERERA FÖRSLAG"}));const lunch=screen.getByRole("button",{name:/Lunch.*0 recept valda/i}).closest("section")!;await user.click(within(lunch).getByRole("button",{name:"VÄLJ"}));const macroBar=screen.getByText("DAGLIGT SNITT").closest("aside")!;
+  await user.click(screen.getByRole("button",{name:"ANPASSA MIN MATVECKA"}));expect(screen.getByText(/600 → 900 kcal\/dag/)).toBeInTheDocument();expect(within(macroBar).getByText(/🔥 600 \/ 2.?500 kcal/)).toBeInTheDocument();await user.click(screen.getByRole("button",{name:"GODKÄNN FÖRSLAG"}));expect(within(macroBar).getByText(/🔥 900 \/ 2.?500 kcal/)).toBeInTheDocument();expect(screen.getByText("× 1.50")).toBeInTheDocument();
+  await user.click(screen.getByRole("button",{name:"Minimera alla"}));expect(screen.getAllByRole("button",{expanded:false}).length).toBeGreaterThanOrEqual(4);expect(screen.queryByText("Ta bort valet")).not.toBeInTheDocument();await user.click(screen.getByRole("button",{name:"Visa alla"}));expect(screen.getByText("Ta bort valet")).toBeInTheDocument();
  });
 
  it("shows unique campaign counts, ingredient mappings and stable strongest-first order on every lunch card",async()=>{
@@ -67,9 +73,9 @@ describe("weekly campaign and planner UI",()=>{
   const rec=(id:string,category:MealCategory,calories:number,protein:number,carbs:number,fat:number,ingredient:string):WeeklyRecommendation=>({id,category,title:id,sourceName:"Mina recept",sourceUrl:"",sourceType:"personal",calories,protein,carbs,fat,servings:5,originalServings:5,ingredients:[{name:ingredient,quantity:"500",unit:"g"}],primaryProtein:id,cuisine:"",favorite:false,score:0,campaignRelevance:0,reasons:[]});
   const selections=emptyWeeklySelections(),values:[MealCategory,number,number,number,number,string][]=[["breakfast",400,30,45,10,"Havregryn"],["lunch",600,50,65,18,"Ris"],["dinner",700,55,70,22,"Pasta"],["snack",300,20,30,8,"Kvarg"]];for(const[category,calories,protein,carbs,fat,ingredient]of values)selections[category]=[makeWeeklySelection(rec(category==="dinner"?"Middag original":category,category,calories,protein,carbs,fat,ingredient),5)];
   const plan={id:"active-week",createdAt:"2026-08-21T10:00:00.000Z",updatedAt:"2026-08-21T10:00:00.000Z",dietPhaseSnapshot:"maintenance",calorieTargetSnapshot:2500,macroFiltersSnapshot:EMPTY_MACRO_FILTERS,plannedDays:5,recommendations:{breakfast:[],lunch:[],dinner:[],snack:[]},selections,shoppingList:buildShoppingList(selections,[],[]),status:"finalized"}as WeeklyPlan;await saveWeeklyPlan(plan);
-  const user=userEvent.setup();render(<WeeklyGenerator/>);const macroBar=(await screen.findByText("DAGLIGT SNITT")).closest("aside")!;expect(within(macroBar).getByText("🔥 2 000 kcal")).toBeInTheDocument();
-  const originalCard=(await screen.findAllByText("Middag original")).map(node=>node.closest("article")).find(article=>article&&within(article).queryByRole("button",{name:"BYT"}))!;await user.click(within(originalCard).getByRole("button",{name:"BYT"}));await user.click(await screen.findByRole("button",{name:"FÖRHANDSVISA"}));expect(within(macroBar).getByText("🔥 2 200 kcal")).toBeInTheDocument();expect(within(macroBar).getByText("💪 165 g")).toBeInTheDocument();
-  await user.click(screen.getByRole("button",{name:"Avbryt"}));expect(within(macroBar).getByText("🔥 2 000 kcal")).toBeInTheDocument();expect(screen.getAllByText("Middag original").length).toBeGreaterThan(0);
-  await user.click(within(originalCard).getByRole("button",{name:"BYT"}));await user.click(await screen.findByRole("button",{name:"FÖRHANDSVISA"}));await user.click(screen.getByRole("button",{name:"BEKRÄFTA BYTE"}));expect(await within(macroBar).findByText("🔥 2 200 kcal")).toBeInTheDocument();expect((await screen.findAllByText(replacement.title)).length).toBeGreaterThan(0);expect(screen.queryAllByText("Middag original")).toHaveLength(0);
+  const user=userEvent.setup();render(<WeeklyGenerator/>);const macroBar=(await screen.findByText("DAGLIGT SNITT")).closest("aside")!;expect(within(macroBar).getByText(/🔥 2.?000 \/ 2.?500 kcal/)).toBeInTheDocument();
+  const originalCard=(await screen.findAllByText("Middag original")).map(node=>node.closest("article")).find(article=>article&&within(article).queryByRole("button",{name:"BYT"}))!;await user.click(within(originalCard).getByRole("button",{name:"BYT"}));await user.click(await screen.findByRole("button",{name:"FÖRHANDSVISA"}));expect(within(macroBar).getByText(/🔥 2.?200 \/ 2.?500 kcal/)).toBeInTheDocument();expect(within(macroBar).getByText("💪 165 g")).toBeInTheDocument();
+  await user.click(screen.getByRole("button",{name:"Avbryt"}));expect(within(macroBar).getByText(/🔥 2.?000 \/ 2.?500 kcal/)).toBeInTheDocument();expect(screen.getAllByText("Middag original").length).toBeGreaterThan(0);
+  await user.click(within(originalCard).getByRole("button",{name:"BYT"}));await user.click(await screen.findByRole("button",{name:"FÖRHANDSVISA"}));await user.click(screen.getByRole("button",{name:"BEKRÄFTA BYTE"}));expect(await within(macroBar).findByText(/🔥 2.?200 \/ 2.?500 kcal/)).toBeInTheDocument();expect((await screen.findAllByText(replacement.title)).length).toBeGreaterThan(0);expect(screen.queryAllByText("Middag original")).toHaveLength(0);
  });
 });

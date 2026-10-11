@@ -6,6 +6,7 @@ import { campaignMatches, campaignRelevance, type CampaignMatch } from "../weekl
 export type MealCategory = "breakfast" | "lunch" | "dinner" | "snack";
 export const MEAL_CATEGORIES:MealCategory[]=["breakfast","lunch","dinner","snack"];
 export type MacroKey = "calories" | "protein" | "carbs" | "fat";
+export type NutritionTargets=Record<MacroKey,number|null>;
 export interface MacroBounds { min: number | null; max: number | null }
 export type MacroFilters = Record<MacroKey, MacroBounds>;
 export const EMPTY_MACRO_FILTERS: MacroFilters = {calories:{min:null,max:null},protein:{min:null,max:null},carbs:{min:null,max:null},fat:{min:null,max:null}};
@@ -13,12 +14,13 @@ export type FilterReason = "incompleteMacros" | "calorieMin" | "calorieMax" | "p
 export type FilterDiagnostics = Record<FilterReason, number>;
 export const emptyDiagnostics=():FilterDiagnostics=>({incompleteMacros:0,calorieMin:0,calorieMax:0,proteinMin:0,proteinMax:0,carbMin:0,carbMax:0,fatMin:0,fatMax:0,duplicate:0,mealType:0,poorSource:0,unavailableSource:0});
 
-export interface WeeklyRecommendation{id:string;category:MealCategory;title:string;sourceName:string;sourceUrl:string;sourceType:"personal"|"external"|"standard";calories:number|null;protein:number|null;carbs:number|null;fat:number|null;servings:number|null;originalServings:number|null;ingredients:Array<{name:string;quantity:string;unit:string}>;mealPrepSuitability?:string;primaryProtein:string;cuisine:string;favorite:boolean;score:number;campaignRelevance:number;reasons:string[];campaignMatches?:CampaignMatch[];standard?:boolean}
-export interface WeeklySelection{id:string;recipe:WeeklyRecommendation;desiredServings:number;label:string}
+export interface WeeklyRecommendation{id:string;category:MealCategory;title:string;sourceName:string;sourceUrl:string;sourceType:"personal"|"external"|"standard";calories:number|null;protein:number|null;carbs:number|null;fat:number|null;nutritionEstimated?:boolean;servings:number|null;originalServings:number|null;ingredients:Array<{name:string;quantity:string;unit:string}>;mealPrepSuitability?:string;primaryProtein:string;cuisine:string;favorite:boolean;score:number;campaignRelevance:number;reasons:string[];campaignMatches?:CampaignMatch[];standard?:boolean}
+export type ScalingMode="proportional"|"macro";
+export interface WeeklySelection{id:string;recipe:WeeklyRecommendation;desiredServings:number;portionScale:number;scalingMode:ScalingMode;label:string}
 export type WeeklySelections=Record<MealCategory,WeeklySelection[]>;
 export const emptyWeeklySelections=():WeeklySelections=>({breakfast:[],lunch:[],dinner:[],snack:[]});
 export interface ShoppingItem{displayName:string;normalizedName:string;quantity:number|null;buyQuantity:number|null;requiredQuantity:number|null;unit:string|null;homeQuantity:number|null;unscaledText?:string;warning?:string;promotion?:{displayName:string;price:number|null;priceType:string}}
-export interface WeeklyPlan{id:string;createdAt:string;updatedAt:string;dietPhaseSnapshot:DietPhase;calorieTargetSnapshot:number|null;macroFiltersSnapshot:MacroFilters;activeFlyerId?:string;plannedDays:number;recommendations:Record<MealCategory,WeeklyRecommendation[]>;selections:WeeklySelections;shoppingList:ShoppingItem[];status:"draft"|"finalized"|"completed"}
+export interface WeeklyPlan{id:string;createdAt:string;updatedAt:string;dietPhaseSnapshot:DietPhase;calorieTargetSnapshot:number|null;nutritionTargetsSnapshot?:NutritionTargets;plannedMealsPerDaySnapshot?:number;macroFiltersSnapshot:MacroFilters;activeFlyerId?:string;plannedDays:number;recommendations:Record<MealCategory,WeeklyRecommendation[]>;selections:WeeklySelections;shoppingList:ShoppingItem[];status:"draft"|"finalized"|"completed"}
 
 export const SCORE_WEIGHTS={favorite:18,rating:2.2,proteinHigh:.35,proteinVeryHigh:.5,mealPrep:8,campaignRelevance:40,inventory:7,useFirst:12,recentPenalty:18,calorieDistance:12}as const;
 const completeNumbers=(values:unknown[])=>values.every(v=>typeof v==="number"&&Number.isFinite(v)&&v>=0&&v<10000);
@@ -34,7 +36,7 @@ export function recipeToRecommendation(recipe:Recipe,category:MealCategory,conte
  if(recipe.lastCookedAt&&Date.now()-new Date(recipe.lastCookedAt).getTime()<14*86400000)score-=SCORE_WEIGHTS.recentPenalty;
  const reasons=[matches.length?`💰 ${matches.length} kampanjvaror`:"",recipe.favorite?"❤️ Ett av dina favoritrecept":"",inventoryMatches[0]?`🏠 Du har ${inventoryMatches[0].displayName} hemma`:""].filter(Boolean);
  const originalServings=recipe.originalServings??recipe.servings??null;
- return{id:recipe.id,category,title:recipe.title,sourceName:"Mina recept",sourceUrl:"",sourceType:"personal",calories:recipe.caloriesPerServing??null,protein:recipe.proteinGramsPerServing??null,carbs:recipe.carbsGramsPerServing??null,fat:recipe.fatGramsPerServing??null,servings:originalServings,originalServings,ingredients:recipe.ingredients.map(x=>({name:x.name,quantity:x.quantity,unit:x.unit})),mealPrepSuitability:recipe.mealPrepSuitability,primaryProtein:recipe.primaryProtein,cuisine:recipe.cuisine,favorite:recipe.favorite,score,campaignRelevance:relevance,reasons,campaignMatches:matches}
+ return{id:recipe.id,category,title:recipe.title,sourceName:"Mina recept",sourceUrl:"",sourceType:"personal",calories:recipe.caloriesPerServing??null,protein:recipe.proteinGramsPerServing??null,carbs:recipe.carbsGramsPerServing??null,fat:recipe.fatGramsPerServing??null,nutritionEstimated:recipe.nutritionSource==="calculated"||recipe.nutritionSource==="unknown",servings:originalServings,originalServings,ingredients:recipe.ingredients.map(x=>({name:x.name,quantity:x.quantity,unit:x.unit})),mealPrepSuitability:recipe.mealPrepSuitability,primaryProtein:recipe.primaryProtein,cuisine:recipe.cuisine,favorite:recipe.favorite,score,campaignRelevance:relevance,reasons,campaignMatches:matches}
 }
 export function standardRecommendation(meal:StandardMeal,category:"breakfast"|"snack"):WeeklyRecommendation{return{id:meal.id,category,title:meal.title,sourceName:"Din standard",sourceUrl:"",sourceType:"standard",calories:meal.nutrition.calories,protein:meal.nutrition.protein,carbs:meal.nutrition.carbs,fat:meal.nutrition.fat,servings:1,originalServings:1,ingredients:meal.ingredients.map(x=>({name:x.displayName,quantity:x.quantity,unit:x.unit})),primaryProtein:"",cuisine:"",favorite:false,score:0,campaignRelevance:0,reasons:["⭐ Din standard"],standard:true}}
 const titleIdentity=(x:WeeklyRecommendation)=>x.title.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9åäö]/g,"");
