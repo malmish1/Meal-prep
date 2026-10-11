@@ -14,6 +14,7 @@ import { WeeklyGenerator } from "./WeeklyGenerator";
 const title="Krämig kycklingpasta med en mycket lång titel som måste radbrytas på mobil";
 
 beforeEach(async()=>{
+ localStorage.clear();
  await resetDBConnectionForTests();
  await new Promise<void>((resolve,reject)=>{const request=indexedDB.deleteDatabase("meal-prep");request.onsuccess=()=>resolve();request.onerror=()=>reject(request.error)});
 });
@@ -56,7 +57,7 @@ describe("weekly campaign and planner UI",()=>{
 
  it("previews smart scaling before approval and supports expand or collapse all",async()=>{
   await seedRecipe();const user=userEvent.setup();render(<WeeklyGenerator/>);await user.click(await screen.findByRole("button",{name:"GENERERA FÖRSLAG"}));const lunch=screen.getByRole("button",{name:/Lunch.*0 recept valda/i}).closest("section")!;await user.click(within(lunch).getByRole("button",{name:"VÄLJ"}));const macroBar=screen.getByText("DAGLIGT SNITT").closest("aside")!;
-  await user.click(screen.getByRole("button",{name:"ANPASSA MIN MATVECKA"}));expect(screen.getByText(/600 → 900 kcal\/dag/)).toBeInTheDocument();expect(within(macroBar).getByText(/🔥 600 \/ 2.?500 kcal/)).toBeInTheDocument();await user.click(screen.getByRole("button",{name:"GODKÄNN FÖRSLAG"}));expect(within(macroBar).getByText(/🔥 900 \/ 2.?500 kcal/)).toBeInTheDocument();expect(screen.getByText("× 1.50")).toBeInTheDocument();
+  const adjustmentTarget=screen.getByRole("spinbutton",{name:"Kalorimål för anpassningen"});await user.clear(adjustmentTarget);await user.type(adjustmentTarget,"2200");expect(screen.getByText(/300 kcal lämnas fritt/)).toBeInTheDocument();await user.click(screen.getByRole("button",{name:"ANPASSA MIN MATVECKA"}));expect(screen.getByText(/600 → 900 kcal\/dag mot målet 2200 kcal/)).toBeInTheDocument();expect(within(macroBar).getByText(/🔥 600 \/ 2.?500 kcal/)).toBeInTheDocument();await user.click(screen.getByRole("button",{name:"GODKÄNN FÖRSLAG"}));expect(within(macroBar).getByText(/🔥 900 \/ 2.?500 kcal/)).toBeInTheDocument();expect(screen.getByText("× 1.50")).toBeInTheDocument();
   await user.click(screen.getByRole("button",{name:"Minimera alla"}));expect(screen.getAllByRole("button",{expanded:false}).length).toBeGreaterThanOrEqual(4);expect(screen.queryByText("Ta bort valet")).not.toBeInTheDocument();await user.click(screen.getByRole("button",{name:"Visa alla"}));expect(screen.getByText("Ta bort valet")).toBeInTheDocument();
  });
 
