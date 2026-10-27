@@ -1,0 +1,57 @@
+.meal-macro-pills {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.meal-macro-pills > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 10px;
+  background: #edf3eb;
+  padding: 7px 6px;
+  font-size: 11px;
+}
+
+.meal-macro-pills b {
+  overflow-wrap: anywhere;
+  color: #315c43;
+  font-size: 11px;
+}
+
+.meal-macro-pills small {
+  color: #6f7871;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.macro-heading {
+  margin: 16px 0 4px !important;
+  color: #315c43 !important;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.weekly-inventory-fields {
+  grid-template-columns: 1fr .8fr;
+}
+
+@media (max-width: 430px) {
+  .weekly-inventory-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .weekly-inventory-fields label:last-child {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 380px) {
+  .meal-macro-pills {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

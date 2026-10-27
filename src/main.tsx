@@ -9,6 +9,7 @@ import './personalization.css'
 import './nutrition.css'
 import './weekly.css'
 import './weekly-extra.css'
+import './macro-pills.css'
 
 registerSW({ immediate: true })
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>)

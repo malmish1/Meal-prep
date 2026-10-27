@@ -1,0 +1,3 @@
+export type MealMacroValues={calories:number|null|undefined;protein:number|null|undefined;carbs:number|null|undefined;fat:number|null|undefined};
+const value=(amount:number|null|undefined,unit:string)=>amount==null?"Ej angivet":`${Math.round(amount*10)/10} ${unit}`;
+export function MealMacroPills({values,label="Makron per portion",className=""}:{values:MealMacroValues;label?:string;className?:string}){return<div className={`meal-macro-pills ${className}`.trim()} aria-label={label}><span>🔥 <b>{value(values.calories,"kcal")}</b><small>Energi</small></span><span>💪 <b>{value(values.protein,"g")}</b><small>Protein</small></span><span>🍚 <b>{value(values.carbs,"g")}</b><small>Kolhydrater</small></span><span>🥑 <b>{value(values.fat,"g")}</b><small>Fett</small></span></div>}
