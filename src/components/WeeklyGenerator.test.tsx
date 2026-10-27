@@ -30,12 +30,17 @@ describe("weekly campaign and planner UI",()=>{
   const promotion={...emptyPromotion(),displayName:"Kycklingfilé",normalizedName:"kycklingfile",price:89.9,priceType:"perKg"as const};
   await savePromotionWeek({flyer:{id:"f",store:"Willys",fileName:"vecka.pdf",fingerprint:"fp",importedAt:new Date().toISOString(),analysisVersion:"flyer-v1",provider:"OpenAI",status:"confirmed"},items:[promotion]});
   render(<WeeklyGenerator/>);await userEvent.click(await screen.findByRole("button",{name:"GENERERA FÖRSLAG"}));
-  expect(await screen.findAllByText("Passar veckans kampanjer")).not.toHaveLength(0);
+  expect(await screen.findAllByText("Bäst match för veckan")).not.toHaveLength(0);
   expect(screen.getAllByText(/Kycklingfilé — 89,9 kr\/kg/).length).toBeGreaterThan(0);
   expect(screen.getAllByRole("button",{name:"VÄLJ"}).length).toBeGreaterThan(0);
   expect(screen.queryByText("45 g protein")).not.toBeInTheDocument();
   const card=screen.getAllByText(title)[0].closest("article")!;
   expect(within(card).getByRole("button",{name:"VÄLJ"}).closest(".recommendation-card-heading")).not.toBeNull();
+ });
+
+ it("lets the user register weekly home ingredients before recommendations are ranked",async()=>{
+  await seedRecipe();const user=userEvent.setup();render(<WeeklyGenerator/>);expect(await screen.findByRole("heading",{name:"Vad har du hemma den här veckan?"})).toBeInTheDocument();await user.type(screen.getByRole("textbox",{name:"Vara hemma"}),"Kycklingfilé");await user.clear(screen.getByRole("spinbutton",{name:"Mängd hemma"}));await user.type(screen.getByRole("spinbutton",{name:"Mängd hemma"}),"800");await user.click(screen.getByRole("button",{name:"+ LÄGG TILL HEMMA"}));expect(await screen.findByText(/800 g · Kyl · Använd först/)).toBeInTheDocument();
+  await user.click(screen.getByRole("button",{name:"GENERERA FÖRSLAG"}));const card=(await screen.findAllByText(title)).map(node=>node.closest("article")).find(Boolean)!;expect(within(card).getByText("🏠 1 ingrediens hemma")).toBeInTheDocument();expect(within(card).getByText(/Kycklingfilé · använd först/)).toBeInTheDocument();
  });
 
  it("keeps selection, portions and live macros when Lunch collapses and expands",async()=>{
