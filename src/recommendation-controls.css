@@ -1,0 +1,72 @@
+.recommendation-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(140px, .8fr);
+  gap: 8px;
+  margin: 10px 0 4px;
+  padding: 10px;
+  border-radius: 14px;
+  background: #f3f6f1;
+}
+
+.recommendation-controls label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  color: #315c43;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.recommendation-controls input,
+.recommendation-controls select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #c8d3c6;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px 10px;
+  color: #273128;
+  font-size: 16px;
+  text-transform: none;
+}
+
+.recommendation-controls > small {
+  grid-column: 1 / -1;
+  color: #657067;
+}
+
+.show-more-recipes {
+  margin-top: 4px;
+}
+
+.filtered-recipe-notice {
+  margin-top: 6px;
+  border-radius: 12px;
+  background: #fff1df;
+  padding: 10px;
+  color: #714924;
+  font-size: 12px;
+}
+
+.filtered-recipe-notice summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.filtered-recipe-notice p,
+.filtered-recipe-notice ul {
+  margin-bottom: 0;
+}
+
+@media (max-width: 430px) {
+  .recommendation-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .recommendation-controls > small {
+    grid-column: auto;
+  }
+}

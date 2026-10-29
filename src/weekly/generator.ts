@@ -3,10 +3,12 @@ import { normalizeFoodName } from "../domain/personalization";
 import type { PromotionFlyer, PromotionItem } from "../domain/promotion";
 import type { Recipe } from "../domain/recipe";
 import { emptyDiagnostics, emptyWeeklySelections, MEAL_CATEGORIES, recipeToRecommendation, standardRecommendation, type FilterDiagnostics, type MacroFilters, type MealCategory, type NutritionTargets, type ShoppingItem, type WeeklyPlan, type WeeklyRecommendation, type WeeklySelection, type WeeklySelections } from "../domain/weeklyPlan";
-import { ingredientCampaignMatch, matchIngredientConcept } from "./campaignMatcher";
+import { ingredientCampaignMatch, matchIngredientConcept, normalizeIngredient } from "./campaignMatcher";
 
 export interface RecommendationResult{recommendations:Record<MealCategory,WeeklyRecommendation[]>;diagnostics:Record<MealCategory,FilterDiagnostics>;totalCandidates:number}
 export type RecipeCandidateInput={profile:DietProfile;recipes:Recipe[];promotions:PromotionItem[];inventory:InventoryItem[];macroFilters:MacroFilters;excludedIds?:Set<string>};
+export type RecommendationSort="recommended"|"protein"|"home"|"campaign"|"title";
+export function filterAndSortRecommendations(items:WeeklyRecommendation[],query:string,sort:RecommendationSort){const normalizedQuery=normalizeIngredient(query),filtered=!normalizedQuery?items:items.filter(item=>normalizeIngredient(item.title).includes(normalizedQuery)||normalizeIngredient(item.primaryProtein).includes(normalizedQuery)||item.ingredients.some(ingredient=>normalizeIngredient(ingredient.name).includes(normalizedQuery)||matchIngredientConcept(ingredient.name,query)));if(sort==="recommended")return filtered;return[...filtered].sort((a,b)=>sort==="protein"?(b.protein??-1)-(a.protein??-1)||compareRecipeCandidates(a,b):sort==="home"?(b.inventoryMatches?.length??0)-(a.inventoryMatches?.length??0)||compareRecipeCandidates(a,b):sort==="campaign"?(b.campaignMatches?.length??0)-(a.campaignMatches?.length??0)||compareRecipeCandidates(a,b):a.title.localeCompare(b.title,"sv"))}
 const recommendationSignals=(item:WeeklyRecommendation)=>{const campaign=item.campaignMatches?.length??0,inventory=item.inventoryMatches?.length??0;return{campaign,inventory,total:campaign+inventory,any:Number(campaign+inventory>0),both:Number(campaign>0&&inventory>0)}};
 export function compareRecipeCandidates(a:WeeklyRecommendation,b:WeeklyRecommendation){const aa=recommendationSignals(a),bb=recommendationSignals(b);return bb.any-aa.any||bb.both-aa.both||bb.total-aa.total||bb.campaign-aa.campaign||bb.inventory-aa.inventory||b.score-a.score||a.title.localeCompare(b.title,"sv")}
 export function getEligibleRecipesForMealType(input:RecipeCandidateInput,category:MealCategory,diagnostics=emptyDiagnostics()){
