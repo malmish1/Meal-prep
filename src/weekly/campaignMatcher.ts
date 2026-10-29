@@ -9,7 +9,7 @@ export const INGREDIENT_TAXONOMY:IngredientConcept[]=[
  {id:"POTATO",aliases:["potatis","fast potatis","mjolig potatis","farskpotatis"]},
  {id:"BELL_PEPPER",aliases:["paprika","rod paprika","gul paprika","gron paprika"]},
  {id:"ONION",aliases:["lok","gul lok","rod lok","rodlok"]},
- {id:"CHICKEN_BREAST",aliases:["kycklingfile","kycklingfileer","farsk kycklingfile"]},
+ {id:"CHICKEN",aliases:["kyckling","kycklingfile","kycklingfileer","kycklinginnerfile","kycklingbrost","farsk kycklingfile"]},
  {id:"GROUND_BEEF",aliases:["notfars","kottfars av not","notfars 5","notfars 10","notfars 12","notfars 20"]},
  {id:"CREME_FRAICHE",aliases:["creme fraiche"]},
  {id:"OATS",aliases:["havregryn","fiberhavregryn","fullkornshavregryn"]},

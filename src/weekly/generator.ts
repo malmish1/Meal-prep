@@ -7,7 +7,8 @@ import { ingredientCampaignMatch, matchIngredientConcept } from "./campaignMatch
 
 export interface RecommendationResult{recommendations:Record<MealCategory,WeeklyRecommendation[]>;diagnostics:Record<MealCategory,FilterDiagnostics>;totalCandidates:number}
 export type RecipeCandidateInput={profile:DietProfile;recipes:Recipe[];promotions:PromotionItem[];inventory:InventoryItem[];macroFilters:MacroFilters;excludedIds?:Set<string>};
-export function compareRecipeCandidates(a:WeeklyRecommendation,b:WeeklyRecommendation){return b.score-a.score||(b.campaignMatches?.length??0)-(a.campaignMatches?.length??0)||(b.inventoryMatches?.length??0)-(a.inventoryMatches?.length??0)||a.title.localeCompare(b.title,"sv")}
+const recommendationSignals=(item:WeeklyRecommendation)=>{const campaign=item.campaignMatches?.length??0,inventory=item.inventoryMatches?.length??0;return{campaign,inventory,total:campaign+inventory,any:Number(campaign+inventory>0),both:Number(campaign>0&&inventory>0)}};
+export function compareRecipeCandidates(a:WeeklyRecommendation,b:WeeklyRecommendation){const aa=recommendationSignals(a),bb=recommendationSignals(b);return bb.any-aa.any||bb.both-aa.both||bb.total-aa.total||bb.campaign-aa.campaign||bb.inventory-aa.inventory||b.score-a.score||a.title.localeCompare(b.title,"sv")}
 export function getEligibleRecipesForMealType(input:RecipeCandidateInput,category:MealCategory,diagnostics=emptyDiagnostics()){
  const context={dailyCalories:input.profile.dailyCalories,proteinPriority:input.profile.proteinPriority,promotions:input.promotions,inventory:input.inventory,macroFilters:input.macroFilters};
  return input.recipes.map(recipe=>recipeToRecommendation(recipe,category,context,diagnostics)).filter((candidate):candidate is WeeklyRecommendation=>!!candidate&&!input.excludedIds?.has(candidate.id)).sort(compareRecipeCandidates);
