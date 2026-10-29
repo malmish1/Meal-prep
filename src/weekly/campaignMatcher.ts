@@ -15,6 +15,8 @@ export const INGREDIENT_TAXONOMY:IngredientConcept[]=[
  {id:"OATS",aliases:["havregryn","fiberhavregryn","fullkornshavregryn"]},
  {id:"TOMATO",aliases:["tomat","tomater","kvisttomat","kvisttomater"]},
  {id:"GROUND_PORK",aliases:["flaskfars","flaskfars 20","flaskkottfars"]},
+ {id:"PORK_TENDERLOIN",aliases:["flaskfile","flaskytterfile","flaskinnerfile","ytterfile av flask","innerfile av flask"]},
+ {id:"TUNA",aliases:["tonfisk","tonfiskfile","tonfisk pa burk","tonfisk i vatten","tonfisk i olja"]},
  {id:"CARROT",aliases:["morot","morotter"]},
  {id:"CUCUMBER",aliases:["gurka","gurkor"]},
  {id:"BROCCOLI",aliases:["broccoli"]},
@@ -31,7 +33,7 @@ export const INGREDIENT_TAXONOMY:IngredientConcept[]=[
  {id:"YOGURT",aliases:["yoghurt","yogurt"]},
  {id:"COTTAGE_CHEESE",aliases:["keso","cottage cheese"]},
 ];
-const noise=/\b(svensk|svenskt|sverige|ekologisk|ekologiskt|extra|klassisk|original|ca|cirka|farsk|farskt|fryst|frysta|hackad|hackat|finhackad|grovhackad|strimlad|strimlat|skivad|skivat|tarnad|tarnat|kokt|kokta|avrunnen|avrunna|valfri|buketter|bitar|i|till|kg|gram|g|hg|ml|cl|dl|l|st|pack|paket|burk|flaska)\b/g;
+const noise=/\b(svensk|svenskt|sverige|ekologisk|ekologiskt|extra|klassisk|original|ca|cirka|farsk|farskt|fryst|frysta|hackad|hackat|finhackad|grovhackad|strimlad|strimlat|skivad|skivat|tarnad|tarnat|kokt|kokta|avrunnen|avrunna|valfri|buketter|bitar|i|till|kg|gram|g|hg|ml|cl|dl|l|st|pack|paket|burk|burkar|konservburk|konservburkar|flaska)\b/g;
 export function normalizeIngredient(value:string){return value.toLocaleLowerCase("sv-SE").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/%/g," ").replace(/[^a-z0-9 ]/g," ").replace(/\b\d+(?:\s+\d+)?(?:kg|hg|g|ml|cl|dl|l|st)\b/g," ").replace(noise," ").replace(/\b\d+(?:\s+\d+)?\b/g," ").replace(/\s+/g," ").trim()}
 const concepts=new Map(INGREDIENT_TAXONOMY.flatMap(c=>c.aliases.map(a=>[normalizeIngredient(a),c.id] as const)));
 const conceptAliases=[...concepts.entries()].sort((a,b)=>b[0].length-a[0].length),phraseIncluded=(text:string,phrase:string)=>` ${text} `.includes(` ${phrase} `),conceptFor=(value:string)=>conceptAliases.find(([alias])=>phraseIncluded(value,alias))?.[1],genericWords=new Set(["mat","mix","file","produkt","vara"]),processedDerivative=/\b(pure|pulver|fond|buljong|vinager|sas|juice|koncentrat)\b/;
