@@ -3,7 +3,7 @@ import { normalizeFoodName } from "../domain/personalization";
 import type { PromotionFlyer, PromotionItem } from "../domain/promotion";
 import type { Recipe } from "../domain/recipe";
 import { emptyDiagnostics, emptyWeeklySelections, MEAL_CATEGORIES, recipeToRecommendation, standardRecommendation, type FilterDiagnostics, type MacroFilters, type MealCategory, type NutritionTargets, type ShoppingItem, type WeeklyPlan, type WeeklyRecommendation, type WeeklySelection, type WeeklySelections } from "../domain/weeklyPlan";
-import { ingredientCampaignMatch, matchIngredientConcept, normalizeIngredient } from "./campaignMatcher";
+import { ingredientCampaignMatch, matchIngredientConcept, normalizeIngredient, recipeIngredientIdentity } from "./campaignMatcher";
 
 export interface RecommendationResult{recommendations:Record<MealCategory,WeeklyRecommendation[]>;diagnostics:Record<MealCategory,FilterDiagnostics>;totalCandidates:number}
 export type RecipeCandidateInput={profile:DietProfile;recipes:Recipe[];promotions:PromotionItem[];inventory:InventoryItem[];macroFilters:MacroFilters;excludedIds?:Set<string>};
@@ -33,7 +33,7 @@ export function scaleSelectionIngredient(selection:WeeklySelection,ingredient:We
 export function buildShoppingList(input:WeeklySelections|Partial<Record<MealCategory,WeeklyRecommendation>>,inventory:InventoryItem[],promotions:PromotionItem[]):ShoppingItem[]{
  const selections=asSelections(input),needs=new Map<string,{displayName:string;normalizedName:string;required:number|null;unit:string|null;unscaled:string[];warning?:string}>();
  for(const category of MEAL_CATEGORIES)for(const selection of selections[category])for(const ingredient of selection.recipe.ingredients){
-  const normalizedName=normalizeFoodName(ingredient.name),scaled=scaleSelectionIngredient(selection,ingredient),key=`${normalizedName}|${scaled.unit??ingredient.unit}`;
+  const normalizedName=normalizeFoodName(ingredient.name),scaled=scaleSelectionIngredient(selection,ingredient),key=`${recipeIngredientIdentity(ingredient.name)}|${scaled.unit??ingredient.unit}`;
   const current=needs.get(key);if(!current)needs.set(key,{displayName:ingredient.name,normalizedName,required:scaled.quantity,unit:scaled.unit,unscaled:scaled.quantity==null&&scaled.originalText?[scaled.originalText]:[],warning:scaled.warning});else if(current.required!=null&&scaled.quantity!=null)current.required=culinaryRound(current.required+scaled.quantity,current.unit??"");else{current.required=null;if(ingredient.quantity)current.unscaled.push(scaled.originalText);current.warning=current.warning??"En eller flera mängder behöver kontrolleras manuellt."}
  }
  return[...needs.values()].map(need=>{
